@@ -1,0 +1,24 @@
+/* Les couleurs de SSK-IT, reprises du logo : bleu nuit, papier, ambre, vert feuille. */
+:root {
+  --encre: #023047;
+  --papier: #efefef;
+  --ambre: #ffb703;
+  --feuille: #2e8b57;
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  color: var(--encre);
+  background: var(--papier);
+}
+
+a {
+  color: var(--feuille);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --feuille: #7bcb8f;
+    color: var(--papier);
+    background: var(--encre);
+  }
+}
