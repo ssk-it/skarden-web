@@ -418,7 +418,10 @@ echo
 # --- 6. Vérifications ----------------------------------------------------------------------
 
 echo "6. Ce qui est en place"
-gh api "repos/${DEPOT}/environments/${ENVIRONNEMENT}/variables" --jq '.variables[] | "  · variable \(.name) = \(.value)"'
-gh api "repos/${DEPOT}/environments/${ENVIRONNEMENT}/secrets" --jq '.secrets[] | "  · secret \(.name), posé le \(.updated_at)"'
+# Le texte vient de jq en ASCII, le préfixe de sed : gh échappe ce que jq lui rend hors ASCII.
+gh api "repos/${DEPOT}/environments/${ENVIRONNEMENT}/variables" --jq '.variables[] | "\(.name) = \(.value)"' \
+  | sed 's/^/  · variable /'
+gh api "repos/${DEPOT}/environments/${ENVIRONNEMENT}/secrets" --jq '.secrets[] | "\(.name) \(.updated_at)"' \
+  | sed 's/^\([^ ]*\) /  · secret \1, posé le /'
 dit "$(site "${BUCKET}") → $(repond "$(site "${BUCKET}")") (404 tant que le premier déploiement n'a rien déposé)"
 echo "Terminé."
