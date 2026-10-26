@@ -103,8 +103,7 @@ R="$(appel GET "/iam/v1alpha1/users/${PROPRIETAIRE}")"
 [ "$(code "${R}")" = 200 ] || ko "utilisateur de la clé illisible (HTTP $(code "${R}")$(pourquoi "${R}"))"
 [ "$(corps "${R}" | jq -r .type)" = owner ] \
   || ko "la clé est celle de $(corps "${R}" | jq -r .email), $(corps "${R}" | jq -r .type) de l'organisation : il faut celle du propriétaire"
-R="$(appel GET "/account/v3/projects/$(corps "${R}" | jq -r .default_project_id)")"
-[ "$(code "${R}")" = 200 ] || ko "projet par défaut de la clé illisible (HTTP $(code "${R}")$(pourquoi "${R}"))"
+# L'organisation se lit sur l'utilisateur : une clé n'a pas toujours de projet par défaut.
 ORGANISATION="$(corps "${R}" | jq -r .organization_id)"
 dit "organisation ${ORGANISATION}, propriétaire user_id:${PROPRIETAIRE}"
 echo
