@@ -20,4 +20,4 @@ Une seule colonne lisible, qui tient sur un téléphone ; les couleurs de Skarde
 
 ## Le cycle de livraison
 
-Une copie liée par sujet, une branche, une demande de fusion vers `main` : les contrôles de `.github/workflows/controles.yml` doivent passer. La branche distante disparaît à la fusion. Le site ne publie pas de versions. Il sera servi depuis un bucket Scaleway : le déploiement reste à mettre en place, par un script versionné pour le bucket et sa politique.
+Une copie liée par sujet, une branche, une demande de fusion vers `main` : les contrôles de `.github/workflows/controles.yml` doivent passer. La branche distante disparaît à la fusion. Le site ne publie pas de versions : chaque arrivée sur `main` est déployée sur le bucket Scaleway `skarden` par `.github/workflows/deploiement.yml`, et servie à https://skarden.s3-website.fr-par.scw.cloud/. Le bucket, sa politique et la clé du déploiement se posent par `outils/preparer-deploiement.sh` ([deploiement.md](deploiement.md)).

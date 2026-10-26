@@ -1,0 +1,92 @@
+# Déploiement du site sur Object Storage Scaleway, à chaque arrivée sur `main`, et à la main.
+#
+# Le bucket `skarden` sert les fichiers de `dist/` tels quels (docs/deploiement.md). Ce qui retient une fusion avant le site est l'environnement `production`, où le dépôt peut exiger une approbation.
+name: Déploiement
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      reference:
+        description: "Branche, tag ou commit à déployer"
+        required: true
+        default: "main"
+
+# Le workflow lit le code et écrit ailleurs.
+permissions:
+  contents: read
+
+# Deux déploiements ne se croisent pas : l'ordre d'arrivée des fichiers déciderait de la version servie. Aucun n'est annulé : un déploiement à moitié écrit laisserait le site incohérent.
+concurrency:
+  group: deploiement
+  cancel-in-progress: false
+
+jobs:
+  deployer:
+    # Dépôt public : les runners de GitHub, comme pour les contrôles. La CLI aws y est déjà installée.
+    runs-on: ubuntu-latest
+    environment: production
+
+    # Les identifiants en variables d'environnement, non par `aws-actions/configure-aws-credentials` : cette action appelle `sts:GetCallerIdentity` sur un hôte qu'elle déduit de la région, `sts.fr-par.amazonaws.com`, qui n'existe pas. La région ne sert qu'à la signature SigV4, que Scaleway vérifie à l'identique.
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.SCW_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      AWS_DEFAULT_REGION: ${{ vars.SCW_REGION }}
+      AWS_REGION: ${{ vars.SCW_REGION }}
+      # Les versions récentes de la CLI ajoutent des sommes de contrôle que l'implémentation S3 de Scaleway rejette.
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+      ENDPOINT: https://s3.${{ vars.SCW_REGION }}.scw.cloud
+      BUCKET: s3://${{ vars.SCW_BUCKET }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.reference || github.ref }}
+
+      # Lit la version dans `packageManager`.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Construire le site
+        run: pnpm build
+
+      # 1. Les fichiers hashés : Vite les range tous sous `assets/`, un contenu modifié y arrive sous un autre nom. Immuables, cachés un an.
+      - name: Déposer les fichiers hashés
+        run: |
+          aws s3 sync dist/assets "$BUCKET/assets" --endpoint-url "$ENDPOINT" \
+            --cache-control 'public, max-age=31536000, immutable'
+
+      # 2. Les fichiers à nom stable de `public/` — icônes, logotypes, manifeste. Un logo remplacé doit se voir : une journée, puis revalidation, où l'ETag rend un 304 sans transfert.
+      - name: Déposer les fichiers à nom stable
+        run: |
+          aws s3 sync dist "$BUCKET" --endpoint-url "$ENDPOINT" \
+            --cache-control 'public, max-age=86400, must-revalidate' \
+            --exclude 'assets/*' --exclude '*.html'
+
+      # 3. Les pages, en dernier. Elles décident des fichiers hashés chargés ; en cache, elles figeraient les navigateurs sur l'ancienne version malgré un déploiement réussi. Tant qu'elles ne sont pas déposées, l'ancienne version est servie entière.
+      - name: Déposer les pages
+        run: |
+          aws s3 sync dist "$BUCKET" --endpoint-url "$ENDPOINT" \
+            --cache-control 'no-cache, must-revalidate' \
+            --exclude '*' --include '*.html'
+
+      # Rien n'est supprimé : `sync --delete` retirerait les fichiers d'une version encore réclamés par un onglet ouvert.
+
+      - name: Récapituler
+        run: |
+          {
+            echo "### Déployé"
+            echo ""
+            echo "- Version : \`${{ inputs.reference || github.ref_name }}\` ($(git rev-parse --short HEAD))"
+            echo "- Bucket : \`${{ vars.SCW_BUCKET }}\` (${{ vars.SCW_REGION }})"
+            echo "- Site : https://${{ vars.SCW_BUCKET }}.s3-website.${{ vars.SCW_REGION }}.scw.cloud/"
+          } >> "$GITHUB_STEP_SUMMARY"

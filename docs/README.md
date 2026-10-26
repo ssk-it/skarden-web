@@ -5,8 +5,9 @@
 1. [developpement.md](developpement.md) — l'arborescence, les commandes, les pièges d'outillage.
 2. [invariants.md](invariants.md) — `INV-1`, `INV-2`, les contraintes non négociables.
 3. [pratiques.md](pratiques.md) — la lecture des fiches, les tests, les erreurs, la mise en page, le cycle de livraison.
-4. [clean-code.md](clean-code.md) — comment s'écrit l'intérieur d'une unité, et ce que l'outillage fait respecter.
-5. [conventions.md](conventions.md) — nommage, langue, commentaires, commits.
+4. [deploiement.md](deploiement.md) — le bucket Scaleway, sa politique, la clé et le workflow qui déposent le site.
+5. [clean-code.md](clean-code.md) — comment s'écrit l'intérieur d'une unité, et ce que l'outillage fait respecter.
+6. [conventions.md](conventions.md) — nommage, langue, commentaires, commits.
 
 ## Ce qui n'est pas ici
 
