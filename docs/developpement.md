@@ -9,7 +9,7 @@ src/main.ts      le point d'entrée : monte l'application
 src/App.vue      la page d'accueil
 src/style.css    les couleurs de Skarden, claires et sombres
 src/*.test.ts    les tests, à côté de ce qu'ils éprouvent
-outils/          le script de mise en place du dépôt GitHub
+outils/          les scripts de mise en place : le dépôt GitHub, le déploiement
 ```
 
 ## Les gestes courants
