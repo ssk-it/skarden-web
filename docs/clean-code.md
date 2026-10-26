@@ -4,12 +4,12 @@ Ce qui gouverne l'intérieur d'une unité. Les frontières — la lecture des fi
 
 ## Lisibilité
 
-- **Un composant affiche, il ne va pas chercher.** `App.vue` ne lit aucune fiche lui-même : ce qu'il montre lui vient du module de lecture (pratiques.md), ce qui le rend testable sans réseau.
+- **Un composant affiche, il ne va pas chercher.** Une page ne lit aucun fichier elle-même : ce qu'elle montre lui vient du dépôt de fiches (`src/fiches/depot-de-fiches.ts`, voir pratiques.md), ce qui la rend testable sans réseau.
 - **Les textes affichés sont dans les gabarits**, en français, jamais construits dans la logique.
 
 ## Conception
 
-- **Une seule raison de changer par unité** : une vue change quand l'écran change, le module de lecture quand le dépôt de données change.
+- **Une seule raison de changer par unité** : une vue change quand l'écran change, le dépôt de fiches quand le format change, l'adaptateur GitHub quand GitHub change.
 
 ## Refactoring
 

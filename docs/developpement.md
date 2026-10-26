@@ -5,8 +5,13 @@
 ```
 index.html       la page, ses icônes et son manifeste
 public/          les icônes et les logotypes de Skarden, servis tels quels
-src/main.ts      le point d'entrée : monte l'application
-src/App.vue      la page d'accueil
+src/main.ts      le point d'entrée : monte l'application, son routeur, et l'ouverture d'un dépôt sur GitHub
+src/App.vue      l'en-tête et la page courante
+src/routeur.ts   les adresses : `#/<propriétaire>/<dépôt>/…`
+src/depot/       la frontière avec le dépôt de données : le port (`lecteur.ts`), l'adaptateur GitHub, le cache par empreinte, ce que le site retient du visiteur
+src/fiches/      le domaine : le format (`referentiel.yml`, frontmatter), le dépôt de fiches, le Markdown assaini, les libellés
+src/pages/       une page par adresse, et le cadre d'un dépôt qui l'ouvre et en dit les erreurs
+src/composants/  ce que les pages partagent : photo, texte d'une fiche, message d'erreur, jeton
 src/style.css    les couleurs de Skarden, claires et sombres
 src/*.test.ts    les tests, à côté de ce qu'ils éprouvent
 outils/          les scripts de mise en place : le dépôt GitHub, le déploiement

@@ -2,7 +2,14 @@
 
 ## La lecture des fiches
 
-Le site ne touche à aucun système : il n'a donc pas de ports vers le système d'exploitation. Sa seule frontière est le dépôt de données. Elle passera par un seul module, qui déclare dans le vocabulaire du domaine ce que le site attend — lister les plantes, lire une fiche, lister les cultures d'une plante — et par un adaptateur qui la réalise ; les vues ne nomment ni GitHub ni une URL. Les tests fournissent un adaptateur en mémoire. Le moment de la lecture — au build ou dans le navigateur — est une décision à cadrer : cette frontière permet de la changer sans toucher aux vues.
+Le site ne touche à aucun système : il n'a donc pas de ports vers le système d'exploitation. Sa seule frontière est le dépôt de données, lu **dans le navigateur**, à la visite, dans le dépôt que le visiteur désigne (cadrage 2026-002 de `ssk-it/skarden-cadrage`).
+
+- **Le port** : `src/depot/lecteur.ts` — la liste des fichiers du commit lu avec leur empreinte, lire un texte, lire une photo. **L'adaptateur** : `src/depot/github.ts`. Les tests fournissent `lecteur-en-memoire.ts`.
+- **Le domaine** : `src/fiches/depot-de-fiches.ts` dit, dans le vocabulaire des fiches, ce que les pages demandent — une plante, les cultures d'une plante, le journal d'une culture, l'accueil. Les pages ne nomment ni GitHub ni une URL ; elles reçoivent l'ouverture d'un dépôt par injection (`CLE_OUVRIR_DEPOT`).
+- **Les portes de GitHub**, mesurées pendant le cadrage : l'API pour le commit de la branche par défaut (`commits/HEAD`) et l'arbre de ce commit ; `raw.githubusercontent.com` au SHA du commit pour le contenu public — il refuse l'en-tête `Authorization` ; l'API `contents` (contenu brut) quand il y a un jeton ; `media.githubusercontent.com` pour une photo LFS, raw ne rendant que son pointeur.
+- **Le coût d'une visite** : sans jeton, l'API admet 60 appels par heure et par adresse IP, réponses 304 comprises. Une visite sans changement n'en coûte qu'un : l'arbre d'un commit déjà lu, et chaque fichier, viennent du cache par empreinte (`src/depot/cache.ts`, Cache Storage, un cache par dépôt). Ce qu'aucun commit lu ne désigne plus s'en efface.
+- **Le journal** se lit d'après la date en tête du nom de ses fichiers : le journal d'une culture ne lit que les entrées de sa période, l'accueil que celles d'après le plus ancien début des cultures en cours.
+- **Le jeton** est mémorisé en `localStorage`, ne paraît jamais dans une adresse, ne part que vers GitHub. Le Markdown d'une fiche passe par `rendreMarkdown`, qui l'assainit : c'est le seul `v-html` admis. La politique de sécurité du contenu, posée au build (`vite.config.ts`), n'ouvre le réseau qu'aux trois hôtes de GitHub.
 
 Le format des fiches est celui que le dépôt de données déclare (`referentiel.yml`, `schemas/`) : le site ne le redéfinit pas.
 
