@@ -42,7 +42,7 @@ Trois déclarations, et rien d'autre :
 Les principaux `SCW` s'écrivent en tableau, comme Scaleway les écrit. Le 20 octobre 2026, une déclaration au principal écrit en chaîne a rendu le bucket de SSK Canon inévaluable — 500 sur toute requête, deux heures de panne (`ssk-it/skanon`, `docs/deploiement.md`). D'où l'ordre que suit le script :
 
 1. **sur un bucket d'essai** (`skarden-essai`, ou celui que nomme `ESSAI`) : la politique est posée, puis surveillée cinq minutes — une sonde lue de l'extérieur par l'adresse du site, la politique relue par le propriétaire — ; une clé temporaire de l'application y écrit, liste et supprime un objet, puis est révoquée. Le bucket d'essai est ensuite supprimé, sur confirmation ;
-2. **sur `skarden`** seulement ensuite, sous la même surveillance. Au premier écart, la politique d'avant est reposée : le 20 octobre, l'écriture d'une politique passait encore quand plus rien d'autre ne passait.
+2. **sur `skarden`** seulement ensuite, surveillée une minute : la même politique a tenu cinq minutes sur l'essai, et tant que le premier déploiement n'a rien déposé, une panne de ce bucket ne casse aucun site. Au premier écart, la politique d'avant est reposée : le 20 octobre, l'écriture d'une politique passait encore quand plus rien d'autre ne passait.
 
 ## Deux politiques de cache
 

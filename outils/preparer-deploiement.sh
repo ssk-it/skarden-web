@@ -259,11 +259,11 @@ politique() {
   }'
 }
 
-# Pose la politique sur un bucket, puis la surveille cinq minutes : une sonde lue de l'extérieur
-# par l'adresse du site, la politique relue par le propriétaire. Au premier écart, la politique
-# d'avant est reposée — l'écriture passait encore quand plus rien ne passait, le 20 octobre.
+# Pose la politique sur un bucket, puis la surveille autant de minutes que demandé : une sonde lue
+# de l'extérieur par l'adresse du site, la politique relue par le propriétaire. Au premier écart, la
+# politique d'avant est reposée — l'écriture passait encore quand plus rien ne passait, le 20 octobre.
 poser_politique() {
-  local bucket="$1" sonde="sonde-politique.txt" adresse avant="${PRIVE}/avant-$1.json" apres="${PRIVE}/apres-$1.json"
+  local bucket="$1" minutes="$2" sonde="sonde-politique.txt" adresse avant="${PRIVE}/avant-$1.json" apres="${PRIVE}/apres-$1.json"
   adresse="$(site "${bucket}")${sonde}"
   politique "${bucket}" > "${apres}"
   if s3 admin "${bucket}" get-bucket-policy --query Policy --output text > "${avant}" 2>/dev/null; then
@@ -276,14 +276,14 @@ poser_politique() {
     rm -f "${avant}"
   fi
   sed 's/^/    /' "${apres}"
-  confirmer "poser cette politique sur ${bucket}, sous surveillance cinq minutes ?" || return 1
+  confirmer "poser cette politique sur ${bucket}, sous surveillance ${minutes} min ?" || return 1
   printf 'sonde de la politique du bucket\n' > "${PRIVE}/${sonde}"
   s3 admin "${bucket}" put-object --key "${sonde}" --body "${PRIVE}/${sonde}" --content-type text/plain >/dev/null \
     || ko "dépôt de la sonde refusé"
   s3 admin "${bucket}" put-bucket-policy --policy "file://${apres}" || ko "écriture de la politique refusée"
   ok "politique écrite à $(date +%H:%M:%S)"
   local public lue
-  for _ in $(seq 1 15); do
+  for _ in $(seq 1 $((minutes * 3))); do
     sleep 20
     public="$(repond "${adresse}")"
     if s3 admin "${bucket}" get-bucket-policy >/dev/null 2>&1; then lue=relue; else lue=illisible; fi
@@ -298,7 +298,7 @@ poser_politique() {
     fi
   done
   s3 admin "${bucket}" delete-object --key "${sonde}" >/dev/null || dit "sonde laissée dans ${bucket}"
-  ok "la politique de ${bucket} a tenu cinq minutes"
+  ok "la politique de ${bucket} a tenu ${minutes} min"
 }
 
 # Éprouve la clé de l'application sur le bucket d'essai : une clé temporaire, qui écrit, liste et
@@ -341,7 +341,7 @@ if s3 admin "${BUCKET}" get-bucket-policy --query Policy --output text 2>/dev/nu
 else
   echo "  a. Sur le bucket d'essai ${ESSAI}"
   preparer_bucket "${ESSAI}"
-  poser_politique "${ESSAI}" || ko "essai abandonné : rien n'est posé sur ${BUCKET}"
+  poser_politique "${ESSAI}" 5 || ko "essai abandonné : rien n'est posé sur ${BUCKET}"
   eprouver_application
   if confirmer "supprimer le bucket d'essai ${ESSAI} et ce qu'il contient ?"; then
     if AWS_SHARED_CREDENTIALS_FILE="${PRIVE}/identifiants" AWS_CONFIG_FILE=/dev/null AWS_PROFILE=admin \
@@ -356,7 +356,9 @@ else
     dit "${ESSAI} laissé en place"
   fi
   echo "  b. Sur ${BUCKET}"
-  poser_politique "${BUCKET}" || ko "politique de ${BUCKET} non posée : le site restera privé"
+  # Une minute suffit ici : la même politique a tenu cinq minutes sur l'essai, et tant que le
+  # premier déploiement n'a rien déposé, une panne de ce bucket ne casse aucun site.
+  poser_politique "${BUCKET}" 1 || ko "politique de ${BUCKET} non posée : le site restera privé"
 fi
 echo
 
