@@ -89,14 +89,22 @@ appel() {
 }
 corps() { sed '$d' <<< "$1"; }
 code()  { tail -n1 <<< "$1"; }
+# Ce que Scaleway dit d'un refus : son message, jamais un secret.
+pourquoi() { corps "$1" | jq -r '(.message // empty) | " : " + .' 2>/dev/null || true; }
 
 # Le propriétaire : l'utilisateur de la clé, comme `scw iam api-key get <access key>` le donne.
 R="$(appel GET "/iam/v1alpha1/api-keys/${ADMIN_ACCES}")"
-[ "$(code "${R}")" = 200 ] || ko "clé d'administrateur refusée par Scaleway (HTTP $(code "${R}"))"
+[ "$(code "${R}")" = 200 ] || ko "clé d'administrateur refusée par Scaleway (HTTP $(code "${R}")$(pourquoi "${R}"))"
 PROPRIETAIRE="$(corps "${R}" | jq -r '.user_id // empty')"
 [ -n "${PROPRIETAIRE}" ] || ko "cette clé est celle d'une application : il faut celle du propriétaire"
+# Seul le propriétaire écrit sans politique IAM qui le lui permette : un membre de l'organisation
+# lirait les projets, puis serait refusé à la création de l'application.
+R="$(appel GET "/iam/v1alpha1/users/${PROPRIETAIRE}")"
+[ "$(code "${R}")" = 200 ] || ko "utilisateur de la clé illisible (HTTP $(code "${R}")$(pourquoi "${R}"))"
+[ "$(corps "${R}" | jq -r .type)" = owner ] \
+  || ko "la clé est celle de $(corps "${R}" | jq -r .email), $(corps "${R}" | jq -r .type) de l'organisation : il faut celle du propriétaire"
 R="$(appel GET "/account/v3/projects/$(corps "${R}" | jq -r .default_project_id)")"
-[ "$(code "${R}")" = 200 ] || ko "projet par défaut de la clé illisible (HTTP $(code "${R}"))"
+[ "$(code "${R}")" = 200 ] || ko "projet par défaut de la clé illisible (HTTP $(code "${R}")$(pourquoi "${R}"))"
 ORGANISATION="$(corps "${R}" | jq -r .organization_id)"
 dit "organisation ${ORGANISATION}, propriétaire user_id:${PROPRIETAIRE}"
 echo
@@ -105,7 +113,7 @@ echo
 
 echo "1. Projet ${NOM_PROJET}"
 R="$(appel GET "/account/v3/projects?organization_id=${ORGANISATION}&name=${NOM_PROJET}")"
-[ "$(code "${R}")" = 200 ] || ko "projets illisibles (HTTP $(code "${R}"))"
+[ "$(code "${R}")" = 200 ] || ko "projets illisibles (HTTP $(code "${R}")$(pourquoi "${R}"))"
 PROJET="$(corps "${R}" | jq -r --arg n "${NOM_PROJET}" '.projects[] | select(.name == $n) | .id' | head -n1)"
 if [ -n "${PROJET}" ]; then
   ok "existe déjà (${PROJET})"
@@ -113,7 +121,7 @@ else
   confirmer "créer le projet ${NOM_PROJET}, qui ne portera que le bucket du site ?" || ko "sans projet, pas de bucket"
   R="$(appel POST /account/v3/projects --data-binary @<(jq -n --arg o "${ORGANISATION}" --arg n "${NOM_PROJET}" \
     '{organization_id: $o, name: $n, description: "Le site de Skarden (ssk-it/skarden-web), servi depuis le bucket skarden"}'))"
-  [ "$(code "${R}")" = 200 ] || ko "création du projet refusée (HTTP $(code "${R}"))"
+  [ "$(code "${R}")" = 200 ] || ko "création du projet refusée (HTTP $(code "${R}")$(pourquoi "${R}"))"
   PROJET="$(corps "${R}" | jq -r .id)"
   ok "créé (${PROJET})"
 fi
@@ -180,7 +188,7 @@ connus='[]'
 page=1
 while :; do
   R="$(appel GET "/iam/v1alpha1/permission-sets?organization_id=${ORGANISATION}&page_size=100&page=${page}")"
-  [ "$(code "${R}")" = 200 ] || ko "jeux de permissions illisibles (HTTP $(code "${R}"))"
+  [ "$(code "${R}")" = 200 ] || ko "jeux de permissions illisibles (HTTP $(code "${R}")$(pourquoi "${R}"))"
   connus="$(jq -c --argjson c "${connus}" '$c + [.permission_sets[].name]' <<< "$(corps "${R}")")"
   total="$(corps "${R}" | jq -r .total_count)"
   [ "$(jq length <<< "${connus}")" -lt "${total}" ] && [ "${page}" -lt 50 ] || break
@@ -190,7 +198,7 @@ manquants="$(jq -r --argjson v "${PERMISSIONS}" '. as $n | $v - $n | join(", ")'
 [ -z "${manquants}" ] || ko "jeux de permissions inconnus de Scaleway : ${manquants}"
 
 R="$(appel GET "/iam/v1alpha1/applications?organization_id=${ORGANISATION}&name=${APPLICATION}")"
-[ "$(code "${R}")" = 200 ] || ko "applications illisibles (HTTP $(code "${R}"))"
+[ "$(code "${R}")" = 200 ] || ko "applications illisibles (HTTP $(code "${R}")$(pourquoi "${R}"))"
 ID_APPLICATION="$(corps "${R}" | jq -r --arg n "${APPLICATION}" '.applications[] | select(.name == $n) | .id' | head -n1)"
 if [ -n "${ID_APPLICATION}" ]; then
   ok "existe déjà (${ID_APPLICATION})"
@@ -198,13 +206,13 @@ else
   confirmer "créer l'application ${APPLICATION} ?" || ko "sans application, pas de clé"
   R="$(appel POST /iam/v1alpha1/applications --data-binary @<(jq -n --arg o "${ORGANISATION}" --arg n "${APPLICATION}" \
     '{organization_id: $o, name: $n, description: "Dépose le site de Skarden (ssk-it/skarden-web, workflow Déploiement)"}'))"
-  [ "$(code "${R}")" = 200 ] || ko "création de l'application refusée (HTTP $(code "${R}"))"
+  [ "$(code "${R}")" = 200 ] || ko "création de l'application refusée (HTTP $(code "${R}")$(pourquoi "${R}"))"
   ID_APPLICATION="$(corps "${R}" | jq -r .id)"
   ok "créée (${ID_APPLICATION})"
 fi
 
 R="$(appel GET "/iam/v1alpha1/policies?organization_id=${ORGANISATION}&application_ids=${ID_APPLICATION}")"
-[ "$(code "${R}")" = 200 ] || ko "politiques illisibles (HTTP $(code "${R}"))"
+[ "$(code "${R}")" = 200 ] || ko "politiques illisibles (HTTP $(code "${R}")$(pourquoi "${R}"))"
 if [ "$(corps "${R}" | jq '.policies | length')" -gt 0 ]; then
   ok "l'application a déjà une politique : laissée telle quelle"
 else
@@ -215,7 +223,7 @@ else
     '{organization_id: $o, application_id: $a, name: "skarden-deploiement",
       description: "Objets du projet skarden, pour le déploiement du site",
       rules: [{permission_set_names: $v, project_ids: [$p]}]}'))"
-  [ "$(code "${R}")" = 200 ] || ko "création de la politique refusée (HTTP $(code "${R}"))"
+  [ "$(code "${R}")" = 200 ] || ko "création de la politique refusée (HTTP $(code "${R}")$(pourquoi "${R}"))"
   ok "politique créée"
 fi
 echo
@@ -227,7 +235,7 @@ creer_cle() {
   r="$(appel POST /iam/v1alpha1/api-keys --data-binary @<(jq -n \
     --arg a "${ID_APPLICATION}" --arg p "${PROJET}" --arg d "${description}" \
     '{application_id: $a, default_project_id: $p, description: $d}'))"
-  [ "$(code "${r}")" = 200 ] || ko "création de la clé refusée (HTTP $(code "${r}"))"
+  [ "$(code "${r}")" = 200 ] || ko "création de la clé refusée (HTTP $(code "${r}")$(pourquoi "${r}"))"
   corps "${r}" | jq -r '.access_key, .secret_key'
 }
 
@@ -321,7 +329,7 @@ eprouver_application() {
   if [ "$(code "${R}")" = 204 ]; then
     ok "clé d'essai révoquée"
   else
-    dit "clé d'essai ${acces} à révoquer dans la console (HTTP $(code "${R}"))"
+    dit "clé d'essai ${acces} à révoquer dans la console (HTTP $(code "${R}")$(pourquoi "${R}"))"
   fi
   [ "${ecrit}" != refuse ] || ko "la clé de l'application est refusée dans ${ESSAI} : la politique ne convient pas"
 }
