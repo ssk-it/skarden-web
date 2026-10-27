@@ -241,7 +241,11 @@ export class DepotDeFiches {
       )?.[1];
       return date === undefined || garderDate(date);
     };
-    const entrees = await this.lireToutes("journal", versEntree, garder);
+    const lues = await this.lireToutes("journal", versEntree, garder);
+    const entrees = {
+      ...lues,
+      fiches: lues.fiches.filter((e): e is EntreeDuJournal => e !== undefined),
+    };
     entrees.fiches.sort(
       (a, b) =>
         b.date.localeCompare(a.date) || b.chemin.localeCompare(a.chemin),
@@ -382,10 +386,13 @@ function versCulture({ donnees, corps }: FicheLue): Culture {
   };
 }
 
+// RG-entree-du-journal : une entrée désigne une culture ou un élevage. Le site ne présente pas encore les élevages : leurs entrées sont laissées de côté, sans être dites invalides.
 function versEntree(
   { donnees, corps }: FicheLue,
   chemin: string,
-): EntreeDuJournal {
+): EntreeDuJournal | undefined {
+  if (donnees.culture === undefined && donnees.elevage !== undefined)
+    return undefined;
   return {
     chemin,
     date: texte(donnees, "date"),

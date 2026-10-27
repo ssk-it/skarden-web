@@ -128,6 +128,35 @@ describe("DepotDeFiches", () => {
     );
   });
 
+  // RG-entree-du-journal : une entrée désigne une culture ou un élevage ; le site ne présente pas encore les élevages.
+  it("laisse de côté, sans la dire invalide, une entrée du journal qui désigne un élevage", async () => {
+    const { depot } = await ouvrir({
+      ...DEPOT_EXEMPLE,
+      "journal/2026/2026-11-03-petit-gris-mise-en-dormance.md": fiche(
+        "date: 2026-11-03\nelevage: 2026-petit-gris-garage\nevenement: mise-en-dormance",
+      ),
+    });
+    const { cultures, invalides } = await depot.accueil();
+    expect(invalides).toEqual([]);
+    expect(cultures.map((c) => c.derniere?.date)).toEqual([
+      "2026-06-01",
+      "2026-05-02",
+    ]);
+  });
+
+  it("dit invalide une entrée du journal qui ne désigne ni culture ni élevage", async () => {
+    const { depot } = await ouvrir({
+      ...DEPOT_EXEMPLE,
+      "journal/2026/2026-11-04-orpheline.md": fiche(
+        "date: 2026-11-04\nevenement: observation",
+      ),
+    });
+    const { invalides } = await depot.accueil();
+    expect(invalides.map((i) => i.chemin)).toEqual([
+      "journal/2026/2026-11-04-orpheline.md",
+    ]);
+  });
+
   it("lit une photo citée par une fiche", async () => {
     const { depot } = await ouvrir();
     expect(await (await depot.lirePhoto("medias/basilic.jpg")).text()).toBe(
