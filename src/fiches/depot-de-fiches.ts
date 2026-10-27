@@ -107,7 +107,6 @@ export interface Animal {
   plages: Plage[];
   modes: Mode[];
   densite?: Densite;
-  aliments: { plantes: string[]; animaux: string[] };
   complements: string[];
   reproduction?: { mode?: string; fecondite?: Fourchette };
   stades: string[];
@@ -699,7 +698,6 @@ function versAnimal({ donnees, corps }: FicheLue): Animal {
   const densite = objet(donnees.densite);
   const bornes = fourchette(densite);
   const reproduction = objet(donnees.reproduction);
-  const aliments = objet(donnees.aliments);
   return {
     id: texte(donnees, "id"),
     nom: texte(donnees, "nom"),
@@ -739,10 +737,6 @@ function versAnimal({ donnees, corps }: FicheLue): Animal {
       (densite.unite === "par-m2-sol" || densite.unite === "par-litre")
         ? { ...bornes, unite: densite.unite }
         : undefined,
-    aliments: {
-      plantes: liste(aliments.plantes),
-      animaux: liste(aliments.animaux),
-    },
     complements: liste(donnees.complements),
     reproduction:
       donnees.reproduction === undefined
