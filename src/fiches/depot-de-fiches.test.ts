@@ -194,7 +194,6 @@ describe("DepotDeFiches, côté animal", () => {
       milieu: "terrestre",
       protection: "encadree",
       densite: { min: 100, max: 150, unite: "par-m2-sol" },
-      aliments: { plantes: ["basilic"], animaux: [] },
       complements: ["calcium", "farine-d-elevage"],
       reproduction: { mode: "oeufs", fecondite: { min: 80, max: 100 } },
       stades: ["oeuf", "juvenile", "adulte"],

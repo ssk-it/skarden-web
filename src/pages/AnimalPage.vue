@@ -74,36 +74,6 @@ const { valeur, erreur, enCours } = useChargement(
             {{ libelle(valeur.animal.densite.unite) }}
           </dd>
         </template>
-        <template
-          v-if="
-            valeur.animal.aliments.plantes.length ||
-            valeur.animal.aliments.animaux.length
-          "
-        >
-          <dt>Aliments</dt>
-          <dd>
-            <template
-              v-for="(plante, i) in valeur.animal.aliments.plantes"
-              :key="plante"
-            >
-              <template v-if="i > 0">, </template>
-              <RouterLink :to="{ name: 'plante', params: { id: plante } }">{{
-                plante
-              }}</RouterLink>
-            </template>
-            <template
-              v-for="(proie, i) in valeur.animal.aliments.animaux"
-              :key="proie"
-            >
-              <template v-if="i > 0 || valeur.animal.aliments.plantes.length"
-                >,
-              </template>
-              <RouterLink :to="{ name: 'animal', params: { id: proie } }">{{
-                proie
-              }}</RouterLink>
-            </template>
-          </dd>
-        </template>
         <template v-if="valeur.animal.complements.length">
           <dt>Compléments</dt>
           <dd>{{ valeur.animal.complements.map(libelle).join(", ") }}</dd>

@@ -249,7 +249,7 @@ describe("l'animal", () => {
       "Plages de conditions",
       "Calendrier des modes",
       "Densité",
-      "Aliments",
+      "Compléments",
       "Reproduction",
       "Routine",
       "Procédures",
@@ -307,9 +307,11 @@ describe("l'animal", () => {
     expect(lignes[10]?.text()).toContain("dormance");
   });
 
-  it("mène à ses aliments, à ses procédures et à ses élevages, en cours d'abord", async () => {
+  // L'alimentation se lit dans le corps de la fiche (cadrage 2026-003, décision 06) : aucun lien vers un aliment.
+  it("mène à ses procédures et à ses élevages, en cours d'abord, sans lien vers ses aliments", async () => {
     const { page } = await visiter(`${D}/animaux/petit-gris`);
-    expect(lien(page, "plantes/basilic")).toBe(true);
+    expect(lien(page, "plantes/basilic")).toBe(false);
+    expect(page.text()).not.toContain("Aliments");
     expect(lien(page, "procedures/preparation-substrat-terre")).toBe(true);
     expect(page.text()).toContain(
       "Préparation d'un substrat de terre du jardin",
