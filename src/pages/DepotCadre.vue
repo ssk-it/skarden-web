@@ -73,6 +73,10 @@ function oublierJeton() {
       >{{ designe.proprietaire }}/{{ designe.depot }}</RouterLink
     >
     <RouterLink :to="{ name: 'plantes' }">Plantes</RouterLink>
+    <!-- RG-navigation-par-regne : pas d'entrée vide pour un dépôt qui ne tient que des plantes. -->
+    <RouterLink v-if="depot?.declare('animaux')" :to="{ name: 'animaux' }"
+      >Animaux</RouterLink
+    >
     <RouterLink to="/">Changer de dépôt</RouterLink>
   </nav>
 

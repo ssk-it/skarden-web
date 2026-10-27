@@ -3,20 +3,30 @@
 import { parse } from "yaml";
 import { DepotIllisible } from "../depot/lecteur";
 
-export const COLLECTIONS = [
+// Les collections de la plante sont obligatoires ; celles de l'animal, facultatives : un dépôt qui ne tient que des plantes reste lisible (cadrage 2026-004, décision 04-collections-facultatives).
+export const COLLECTIONS_OBLIGATOIRES = [
   "familles",
   "plantes",
   "emplacements",
   "cultures",
   "journal",
 ] as const;
-export type Collection = (typeof COLLECTIONS)[number];
+export const COLLECTIONS_FACULTATIVES = [
+  "animaux",
+  "elevages",
+  "installations",
+  "procedures",
+] as const;
+export type CollectionObligatoire = (typeof COLLECTIONS_OBLIGATOIRES)[number];
+export type CollectionFacultative = (typeof COLLECTIONS_FACULTATIVES)[number];
+export type Collection = CollectionObligatoire | CollectionFacultative;
 
 // Les versions du format que ce site sait lire.
 const VERSIONS_CONNUES = [1];
 
 export interface Referentiel {
-  dossiers: Record<Collection, string>;
+  dossiers: Record<CollectionObligatoire, string> &
+    Partial<Record<CollectionFacultative, string>>;
 }
 
 export function lireReferentiel(texte: string): Referentiel {
@@ -33,11 +43,18 @@ export function lireReferentiel(texte: string): Referentiel {
   if (!VERSIONS_CONNUES.includes(schema_version as number) || !collections) {
     throw new DepotIllisible("format-inconnu");
   }
-  const dossiers = {} as Record<Collection, string>;
-  for (const collection of COLLECTIONS) {
+  const dossiers = {} as Referentiel["dossiers"];
+  for (const collection of COLLECTIONS_OBLIGATOIRES) {
     const dossier = collections[collection]?.dossier;
     if (typeof dossier !== "string") throw new DepotIllisible("format-inconnu");
     dossiers[collection] = dossier;
+  }
+  for (const collection of COLLECTIONS_FACULTATIVES) {
+    const declaree = collections[collection];
+    if (declaree === undefined || declaree === null) continue;
+    if (typeof declaree.dossier !== "string")
+      throw new DepotIllisible("format-inconnu");
+    dossiers[collection] = declaree.dossier;
   }
   return { dossiers };
 }

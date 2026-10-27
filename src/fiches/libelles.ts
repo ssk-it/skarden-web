@@ -8,6 +8,40 @@ const ACCENTUES: Record<string, string> = {
   recolte: "récolte",
   serre: "serre",
   jardiniere: "jardinière",
+  // L'animal (RG-valeurs-enumerees-fermees, cadrage 2026-003).
+  elevage: "élevage",
+  vegetal: "végétal",
+  "eau-salee": "eau salée",
+  encadree: "encadrée",
+  protegee: "protégée",
+  "temperature-c": "température (°C)",
+  "humidite-pct": "humidité (%)",
+  "salinite-g-l": "salinité (g/L)",
+  ph: "pH",
+  "a-eviter": "à éviter",
+  reveil: "réveil",
+  activite: "activité",
+  preparation: "préparation",
+  "par-m2-sol": "par m² au sol",
+  "farine-d-elevage": "farine d'élevage",
+  "eau-verte": "eau verte",
+  oeufs: "œufs",
+  parthenogenese: "parthénogenèse",
+  oeuf: "œuf",
+  neonate: "néonate",
+  juvenile: "juvénile",
+  controle: "contrôle",
+  "renouvellement-substrat": "renouvellement du substrat",
+  "changement-d-eau": "changement d'eau",
+  aeration: "aération",
+  quotidienne: "chaque jour",
+  hebdomadaire: "chaque semaine",
+  mensuelle: "chaque mois",
+  bimestrielle: "tous les deux mois",
+  saisonniere: "à chaque saison",
+  eclosoir: "éclosoir",
+  prelevement: "prélèvement",
+  eclosion: "éclosion",
 };
 
 export function libelle(valeur: string): string {
@@ -44,3 +78,7 @@ export const libelleDate = (date: string) => {
   const jour = new Date(`${date}T00:00:00Z`);
   return Number.isNaN(jour.getTime()) ? date : DATE.format(jour);
 };
+
+// Un nombre à la française : « 0,54 », « 215 ».
+const NOMBRE = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
+export const libelleNombre = (nombre: number) => NOMBRE.format(nombre);

@@ -26,6 +26,25 @@ describe("lireReferentiel", () => {
     });
   });
 
+  // RG-referentiel-yml-decrit-le-depot : les collections de l'animal sont facultatives.
+  it("lit les collections de l'animal quand le dépôt les déclare", () => {
+    const referentiel = lireReferentiel(
+      `${REFERENTIEL}  animaux: { dossier: animaux }\n  elevages: { dossier: elevages }\n  installations: { dossier: installations }\n  procedures: { dossier: procedures }\n`,
+    );
+    expect(referentiel.dossiers).toMatchObject({
+      animaux: "animaux",
+      elevages: "elevages",
+      installations: "installations",
+      procedures: "procedures",
+    });
+  });
+
+  it("accepte un dépôt qui ne déclare pas les collections de l'animal", () => {
+    const { dossiers } = lireReferentiel(REFERENTIEL);
+    expect(dossiers.animaux).toBeUndefined();
+    expect(dossiers.elevages).toBeUndefined();
+  });
+
   it("refuse une version de format inconnue", () => {
     const erreur = (() => {
       try {

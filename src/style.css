@@ -145,3 +145,34 @@ button {
 .pied {
   margin-top: 3rem;
 }
+
+/* RG-page-d-un-animal : la protection qui interdit de prélever se voit avant le reste. */
+.alerte {
+  border-left: 4px solid var(--ambre);
+  padding: 0.25rem 0 0.25rem 0.75rem;
+}
+
+/* Les plages et le calendrier : des tableaux étroits, qui tiennent sur un téléphone. */
+.tableau {
+  border-collapse: collapse;
+  margin: 1rem 0;
+  width: 100%;
+}
+
+.tableau caption {
+  font-weight: 600;
+  text-align: left;
+  padding-bottom: 0.25rem;
+}
+
+.tableau th,
+.tableau td {
+  text-align: left;
+  padding: 0.2rem 0.5rem 0.2rem 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  vertical-align: top;
+}
+
+.tableau tbody th {
+  font-weight: normal;
+}
