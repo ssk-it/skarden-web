@@ -8,7 +8,9 @@ La liste est à compléter à mesure que le site prend forme.
 
 ## INV-1 — Le dépôt de données est la seule source
 
-Le site lit les fiches et les photos dans [sskorupski/skarden](https://github.com/sskorupski/skarden) et ne les tient nulle part ailleurs : ni base, ni copie éditée à la main, ni fiche écrite dans ce dépôt. S'il écrit un jour, il n'écrit que dans le dépôt de données, par des commits. Ce que la règle protège : une seule vérité, dont Git garde l'histoire. Sans elle, une copie dans le site diverge de la fiche, et l'on ne sait plus laquelle croire.
+Le site lit les fiches et les photos dans le dépôt GitHub que le visiteur désigne, et ne les tient nulle part ailleurs : ni base, ni copie éditée à la main, ni fiche écrite dans ce dépôt-ci. Il ne nomme aucun dépôt de données — ni dans son code, ni dans sa configuration, ni dans sa page. Ce que le navigateur garde en cache est une copie jetable, rangée sous l'empreinte de son contenu, jamais une source. S'il écrit un jour, il n'écrit que dans le dépôt qu'il lit, par des commits. Ce que la règle protège : une seule vérité, dont Git garde l'histoire. Sans elle, une copie dans le site diverge de la fiche, et l'on ne sait plus laquelle croire.
+
+_Réécrit le 2026-10-26 par le cadrage 2026-002 de `ssk-it/skarden-cadrage` : il nommait `sskorupski/skarden` ; le site lit désormais le dépôt que le visiteur désigne._
 
 ## INV-2 — Un site statique, sans serveur applicatif
 

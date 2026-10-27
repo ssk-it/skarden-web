@@ -22,3 +22,126 @@ a {
     background: var(--encre);
   }
 }
+
+/* Les pages de fiches : une colonne, lisible sur un téléphone. */
+.navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.navigation .depot {
+  font-weight: 600;
+}
+
+.question {
+  font-size: 1.25rem;
+}
+
+.saisie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+input {
+  font: inherit;
+  padding: 0.4rem 0.5rem;
+  min-width: min(20rem, 100%);
+}
+
+button {
+  font: inherit;
+  padding: 0.4rem 0.8rem;
+}
+
+.erreur {
+  border-left: 4px solid var(--ambre);
+  padding-left: 0.75rem;
+}
+
+.aide,
+.discret,
+.latin,
+.chargement {
+  opacity: 0.75;
+}
+
+.latin {
+  font-style: italic;
+}
+
+.cartes,
+.liste,
+.journal {
+  list-style: none;
+  padding: 0;
+}
+
+.cartes li {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.cartes .titre {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.liste li {
+  padding: 0.25rem 0;
+}
+
+.champs {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+}
+
+.champs dt {
+  font-weight: 600;
+}
+
+.champs dd {
+  margin: 0;
+}
+
+.journal li {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.journal .date {
+  font-weight: 600;
+  margin: 0;
+}
+
+.photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.5rem;
+}
+
+.photo {
+  margin: 0;
+}
+
+.photo img {
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.pied {
+  margin-top: 3rem;
+}
