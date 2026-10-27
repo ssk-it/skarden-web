@@ -6,12 +6,17 @@ import {
   type RouterHistory,
 } from "vue-router";
 import AccueilPage from "./pages/AccueilPage.vue";
+import AnimalPage from "./pages/AnimalPage.vue";
+import AnimauxPage from "./pages/AnimauxPage.vue";
 import CulturePage from "./pages/CulturePage.vue";
 import DepotCadre from "./pages/DepotCadre.vue";
+import ElevagePage from "./pages/ElevagePage.vue";
 import EmplacementPage from "./pages/EmplacementPage.vue";
 import FamillePage from "./pages/FamillePage.vue";
+import InstallationPage from "./pages/InstallationPage.vue";
 import PlantePage from "./pages/PlantePage.vue";
 import PlantesPage from "./pages/PlantesPage.vue";
+import ProcedurePage from "./pages/ProcedurePage.vue";
 import SaisieDuDepotPage from "./pages/SaisieDuDepotPage.vue";
 
 export function creerRouteur(
@@ -35,6 +40,19 @@ export function creerRouteur(
             component: EmplacementPage,
           },
           { path: "familles/:id", name: "famille", component: FamillePage },
+          { path: "animaux", name: "animaux", component: AnimauxPage },
+          { path: "animaux/:id", name: "animal", component: AnimalPage },
+          { path: "elevages/:id", name: "elevage", component: ElevagePage },
+          {
+            path: "installations/:id",
+            name: "installation",
+            component: InstallationPage,
+          },
+          {
+            path: "procedures/:id",
+            name: "procedure",
+            component: ProcedurePage,
+          },
         ],
       },
       { path: "/:pathMatch(.*)*", redirect: "/" },
