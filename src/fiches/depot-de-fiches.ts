@@ -250,6 +250,8 @@ export class DepotDeFiches {
 
   listerPlantes = async () =>
     parNom(await this.lireToutes("plantes", versPlante));
+  listerEmplacements = async () =>
+    parNom(await this.lireToutes("emplacements", versEmplacement));
   listerCultures = () => this.lireToutes("cultures", versCulture);
   listerAnimaux = async () =>
     parNom(await this.lireToutes("animaux", versAnimal));

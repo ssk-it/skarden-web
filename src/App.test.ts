@@ -436,6 +436,69 @@ describe("l'animal", () => {
   });
 });
 
+// RG-liste-des-emplacements
+describe("les emplacements", () => {
+  const D = "/sskorupski/skarden";
+
+  it("se trouvent sous l'entrée Emplacements, après les règnes, quel que soit le dépôt", async () => {
+    const { page } = await visiter(D);
+    const entrees = page.findAll("nav a").map((a) => a.text());
+    expect(entrees.indexOf("Emplacements")).toBeGreaterThan(
+      entrees.indexOf("Animaux"),
+    );
+    const plantes = (await visiter(D, undefined, DEPOT_DE_PLANTES)).page;
+    expect(plantes.find("nav").text()).toContain("Emplacements");
+  });
+
+  it("se listent triés par nom, avec leur lieu, et sous chacun ses installations, sans qu'aucun lot y soit en cours", async () => {
+    const { page } = await visiter(`${D}/emplacements`);
+    expect(page.find("h2").text()).toBe("Emplacements");
+    const emplacements = page.findAll("[data-test=emplacement]");
+    expect(emplacements.map((e) => e.find("a").text())).toEqual([
+      "Garage",
+      "Rebord de la cuisine",
+    ]);
+    const [garage, cuisine] = emplacements;
+    expect(garage?.text()).toContain("à l'intérieur");
+    expect(garage?.find(`a[href='${D}/emplacements/garage']`).exists()).toBe(
+      true,
+    );
+    const installation = garage?.find("[data-test=installation]");
+    expect(installation?.text()).toContain("Aquarium du garage");
+    expect(installation?.text()).toContain("aquarium");
+    expect(
+      installation
+        ?.find(`a[href='${D}/installations/aquarium-garage']`)
+        .exists(),
+    ).toBe(true);
+    expect(cuisine?.find("[data-test=installation]").exists()).toBe(false);
+  });
+
+  it("se listent seuls dans un dépôt qui ne déclare pas les installations", async () => {
+    const { page } = await visiter(
+      `${D}/emplacements`,
+      undefined,
+      DEPOT_DE_PLANTES,
+    );
+    expect(page.findAll("[data-test=emplacement]")).toHaveLength(1);
+    expect(page.find("[data-test=installation]").exists()).toBe(false);
+  });
+
+  it("disent qu'il n'y en a aucun", async () => {
+    const sansEmplacement = Object.fromEntries(
+      Object.entries(DEPOT_DE_PLANTES).filter(
+        ([chemin]) => !chemin.startsWith("emplacements/"),
+      ),
+    );
+    const { page } = await visiter(
+      `${D}/emplacements`,
+      undefined,
+      sansEmplacement,
+    );
+    expect(page.text()).toContain("Aucun emplacement.");
+  });
+});
+
 // RG-depot-illisible-explique
 describe("un dépôt illisible", () => {
   const echouer =
