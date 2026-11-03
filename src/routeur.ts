@@ -12,6 +12,7 @@ import CulturePage from "./pages/CulturePage.vue";
 import DepotCadre from "./pages/DepotCadre.vue";
 import ElevagePage from "./pages/ElevagePage.vue";
 import EmplacementPage from "./pages/EmplacementPage.vue";
+import EmplacementsPage from "./pages/EmplacementsPage.vue";
 import FamillePage from "./pages/FamillePage.vue";
 import InstallationPage from "./pages/InstallationPage.vue";
 import PlantePage from "./pages/PlantePage.vue";
@@ -34,6 +35,11 @@ export function creerRouteur(
           { path: "plantes", name: "plantes", component: PlantesPage },
           { path: "plantes/:id", name: "plante", component: PlantePage },
           { path: "cultures/:id", name: "culture", component: CulturePage },
+          {
+            path: "emplacements",
+            name: "emplacements",
+            component: EmplacementsPage,
+          },
           {
             path: "emplacements/:id",
             name: "emplacement",

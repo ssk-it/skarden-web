@@ -77,6 +77,8 @@ function oublierJeton() {
     <RouterLink v-if="depot?.declare('animaux')" :to="{ name: 'animaux' }"
       >Animaux</RouterLink
     >
+    <!-- RG-liste-des-emplacements : la collection est obligatoire, l'entrée ne dépend d'aucune déclaration. -->
+    <RouterLink :to="{ name: 'emplacements' }">Emplacements</RouterLink>
     <RouterLink to="/">Changer de dépôt</RouterLink>
   </nav>
 
