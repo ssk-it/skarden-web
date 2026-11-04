@@ -11,13 +11,14 @@ Le site ne touche à aucun système : il n'a donc pas de ports vers le système 
 - **Les portes de GitHub**, mesurées pendant le cadrage : l'API pour le commit de la branche par défaut (`commits/HEAD`) et l'arbre de ce commit ; `raw.githubusercontent.com` au SHA du commit pour le contenu public — il refuse l'en-tête `Authorization` ; l'API `contents` (contenu brut) quand il y a un jeton ; `media.githubusercontent.com` pour une photo LFS, raw ne rendant que son pointeur.
 - **Le coût d'une visite** : sans jeton, l'API admet 60 appels par heure et par adresse IP, réponses 304 comprises. Une visite sans changement n'en coûte qu'un : l'arbre d'un commit déjà lu, et chaque fichier, viennent du cache par empreinte (`src/depot/cache.ts`, Cache Storage, un cache par dépôt). Ce qu'aucun commit lu ne désigne plus s'en efface.
 - **Le journal** se lit d'après la date en tête du nom de ses fichiers : le journal d'une culture ou d'un élevage ne lit que les entrées de sa période, l'accueil que celles d'après le plus ancien début des cultures et des élevages en cours, en une seule lecture. Une entrée désigne exactement une culture ou un élevage (`RG-entree-du-journal`) : celle qui ne désigne ni l'un ni l'autre, ou les deux, est dite invalide.
+- **Les photos** d'une fiche s'affichent en vignettes, chacune un bouton, et s'agrandissent par PhotoSwipe (`RG-galerie-des-photos`, cadrage 2026-006) : la bibliothèque, empaquetée par Vite, reçoit les adresses `blob:` déjà lues et les dimensions mesurées sur l'image décodée, sans rien télécharger. Ses libellés passent par ses options, en français ; la boîte de dialogue est dite modale et nommée, et Tab y tourne entre ses boutons (APG, Dialog (Modal)).
 - **Le jeton** est mémorisé en `localStorage`, ne paraît jamais dans une adresse, ne part que vers GitHub. Le Markdown d'une fiche passe par `rendreMarkdown`, qui l'assainit : c'est le seul `v-html` admis. La politique de sécurité du contenu, posée au build (`vite.config.ts`), n'ouvre le réseau qu'aux trois hôtes de GitHub.
 
 Le format des fiches est celui que le dépôt de données déclare (`referentiel.yml`, `schemas/`) : le site ne le redéfinit pas.
 
 ## Les tests
 
-Vitest sous jsdom, un fichier `*.test.ts` à côté de ce qu'il éprouve, `@vue/test-utils` pour monter un composant. Test rouge d'abord : un test qui n'a jamais échoué n'a rien prouvé. Un test éprouve ce que l'utilisateur voit — un texte, un lien —, pas la structure interne d'un composant.
+Vitest sous jsdom, un fichier `*.test.ts` à côté de ce qu'il éprouve, `@vue/test-utils` pour monter un composant. Ce que jsdom ne sait pas faire — décoder une image, le focus, le clavier réel — s'éprouve dans un fichier `*.navigateur.test.ts`, que Vitest lance en mode navigateur sur le WebKit de Playwright, sans tête : le moteur le plus proche de Safari, où l'on regarde les photos. Aucun test n'ouvre de fenêtre. Test rouge d'abord : un test qui n'a jamais échoué n'a rien prouvé. Un test éprouve ce que l'utilisateur voit — un texte, un lien —, pas la structure interne d'un composant.
 
 ## Les erreurs
 

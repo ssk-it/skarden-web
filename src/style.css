@@ -136,10 +136,33 @@ button {
   margin: 0;
 }
 
-.photo img {
+/* RG-galerie-des-photos : une vignette carrée, qui s'agrandit d'un toucher ; son focus se voit, en clair comme en sombre (WCAG 2.4.7, 1.4.11). */
+.photo button {
+  display: block;
   width: 100%;
-  height: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
   border-radius: 4px;
+}
+
+.photo button:focus-visible {
+  outline: 3px solid var(--feuille);
+  outline-offset: 2px;
+}
+
+/* Sur le fond noir de l'agrandissement, l'ambre tranche (WCAG 1.4.11). */
+.pswp__button:focus-visible {
+  outline: 3px solid var(--ambre);
+  outline-offset: -6px;
 }
 
 .pied {

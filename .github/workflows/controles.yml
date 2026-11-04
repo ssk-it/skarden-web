@@ -42,6 +42,10 @@ jobs:
       - name: Format
         run: pnpm format:check
 
+      # Les tests `*.navigateur.test.ts` tournent dans WebKit, sans tête.
+      - name: Installer WebKit
+        run: pnpm exec playwright install --with-deps webkit
+
       - name: Tests
         run: pnpm test
 
