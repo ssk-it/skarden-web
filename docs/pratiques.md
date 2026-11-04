@@ -12,9 +12,19 @@ Le site ne touche à aucun système : il n'a donc pas de ports vers le système 
 - **Le coût d'une visite** : sans jeton, l'API admet 60 appels par heure et par adresse IP, réponses 304 comprises. Une visite sans changement n'en coûte qu'un : l'arbre d'un commit déjà lu, et chaque fichier, viennent du cache par empreinte (`src/depot/cache.ts`, Cache Storage, un cache par dépôt). Ce qu'aucun commit lu ne désigne plus s'en efface.
 - **Le journal** se lit d'après la date en tête du nom de ses fichiers : le journal d'une culture ou d'un élevage ne lit que les entrées de sa période, l'accueil que celles d'après le plus ancien début des cultures et des élevages en cours, en une seule lecture. Une entrée désigne exactement une culture ou un élevage (`RG-entree-du-journal`) : celle qui ne désigne ni l'un ni l'autre, ou les deux, est dite invalide.
 - **Les photos** d'une fiche s'affichent en vignettes, chacune un bouton, et s'agrandissent par PhotoSwipe (`RG-galerie-des-photos`, cadrage 2026-006) : la bibliothèque, empaquetée par Vite, reçoit les adresses `blob:` déjà lues et les dimensions mesurées sur l'image décodée, sans rien télécharger. Ses libellés passent par ses options, en français ; la boîte de dialogue est dite modale et nommée, et Tab y tourne entre ses boutons (APG, Dialog (Modal)).
-- **Le jeton** est mémorisé en `localStorage`, ne paraît jamais dans une adresse, ne part que vers GitHub. Le Markdown d'une fiche passe par `rendreMarkdown`, qui l'assainit : c'est le seul `v-html` admis. La politique de sécurité du contenu, posée au build (`vite.config.ts`), n'ouvre le réseau qu'aux trois hôtes de GitHub.
+- **Le jeton de lecture** est mémorisé en `localStorage`, ne paraît jamais dans une adresse, ne part que vers GitHub. **Le jeton d'écriture** est un second jeton, saisi sur la page d'une fiche, rangé sous son dépôt en `sessionStorage` : il ne survit pas à l'onglet, ne sert qu'à poster, et le bouton qui oublie le jeton de lecture l'oublie aussi (`RG-jeton-d-un-depot-prive`). Le Markdown d'une fiche passe par `rendreMarkdown`, qui l'assainit : c'est le seul `v-html` admis. La politique de sécurité du contenu, posée au build (`vite.config.ts`), n'ouvre le réseau qu'aux trois hôtes de GitHub.
 
 Le format des fiches est celui que le dépôt de données déclare (`referentiel.yml`, `schemas/`) : le site ne le redéfinit pas.
+
+## L'envoi de photos
+
+Le site n'écrit que pour poster des photos, dans le dépôt qu'il lit, par des commits (INV-1, cadrage 2026-006 de `ssk-it/skarden-cadrage`, `ADR-photos-postees-par-une-branche`).
+
+- **Le port** : `src/depot/ecrivain.ts` — lire une fiche à la tête de la branche par défaut, commiter sur une branche neuve, lire la conversion, ouvrir la demande de fusion, en demander la fusion automatique, lire son état. **L'adaptateur** : `src/depot/github-ecriture.ts`, tout par `api.github.com`. Les tests fournissent `ecrivain-en-memoire.ts`.
+- **Le domaine** : `src/fiches/photos-ajoutees.ts` nomme l'envoi (`medias/<dossier de la collection>/<fiche>-<instant>-<rang>.jpg`, branche `photos/<fiche>-<instant>`) et ajoute les chemins à la fin du champ `photos` par une retouche du texte, jamais par une réécriture du YAML ; une forme qu'il ne sait pas compléter est refusée, et rien n'est créé. `src/fiches/envoi-de-photos.ts` mène l'envoi : envoyé, converti, vérifié, fusionné. Une étape qui échoue s'arrête là et se dit, avec le lien de l'Action ou de la demande de fusion.
+- **La réduction** (`src/composants/reduction.ts`, `RG-photo-reduite-avant-l-envoi`) : chaque photo se redessine dans le sens où on l'a prise et se réencode en JPEG, 2 560 pixels au plus, qualité 0,85, ce qui retire ses métadonnées. Une photo que le navigateur ne décode pas est refusée.
+- **La conversion** se lit sur le contrat de `docs/pratiques.md` de `sskorupski/skarden` : le run de `photos-en-lfs.yml` dont `head_sha` est le commit du site. Un dépôt qui n'a pas ce workflow ne reçoit aucune demande de fusion.
+- **Le suivi passe par le jeton d'écriture** : il fait partie de l'envoi, et sans jeton l'API n'admet que 60 appels par heure.
 
 ## Les tests
 

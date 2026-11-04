@@ -37,7 +37,10 @@ async function visiter(
   return { page, routeur, ouvertures };
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  sessionStorage.clear();
+});
 
 describe("le site", () => {
   it("pose la question à laquelle Skarden répond", async () => {
@@ -579,5 +582,66 @@ describe("le jeton", () => {
     const { page, routeur } = await visiter("/sskorupski/skarden");
     expect(routeur.currentRoute.value.fullPath).not.toContain("ghp_secret");
     expect(page.html()).not.toContain("ghp_secret");
+  });
+});
+
+// RG-jeton-d-un-depot-prive, RG-qui-peut-poster-une-photo : poster demande un second jeton, d'écriture, saisi à part sur la page d'une fiche.
+describe("le jeton d'écriture", () => {
+  const CLE = "skarden.jeton-d-ecriture.sskorupski/skarden";
+  const FICHE = "/sskorupski/skarden/plantes/basilic";
+
+  it("sans lui, la fiche explique où le créer, et n'offre pas d'envoyer", async () => {
+    const { page } = await visiter(FICHE);
+    const ajout = page.find("[data-test=ajout-de-photos]");
+    expect(ajout.text()).toContain("Ajouter des photos");
+    expect(ajout.text()).toContain("Contents");
+    expect(ajout.text()).toContain("Pull requests");
+    expect(
+      ajout
+        .find("a[href^='https://github.com/settings/personal-access-tokens']")
+        .exists(),
+    ).toBe(true);
+    expect(ajout.find("input[type=file]").exists()).toBe(false);
+  });
+
+  it("saisi, vaut pour ce dépôt le temps de l'onglet, et ne sert pas à lire", async () => {
+    const { page, ouvertures } = await visiter(FICHE);
+    await page
+      .find("input[name=jeton-d-ecriture]")
+      .setValue("github_pat_ecriture");
+    await page.find("form[data-test=jeton-d-ecriture]").trigger("submit");
+    await flushPromises();
+    expect(sessionStorage.getItem(CLE)).toBe("github_pat_ecriture");
+    expect(localStorage.getItem("skarden.jeton")).toBeNull();
+    expect(ouvertures.map((o) => o.jeton)).toEqual([undefined]);
+    expect(
+      page.find("[data-test=ajout-de-photos] input[type=file]").exists(),
+    ).toBe(true);
+    expect(page.html()).not.toContain("github_pat_ecriture");
+  });
+
+  it("s'oublie par le même bouton que le jeton de lecture", async () => {
+    sessionStorage.setItem(CLE, "github_pat_ecriture");
+    const { page } = await visiter(FICHE);
+    expect(
+      page.find("[data-test=ajout-de-photos] input[type=file]").exists(),
+    ).toBe(true);
+    await page.find("button[data-test=oublier-jeton]").trigger("click");
+    await flushPromises();
+    expect(sessionStorage.getItem(CLE)).toBeNull();
+    expect(
+      page.find("[data-test=ajout-de-photos] input[type=file]").exists(),
+    ).toBe(false);
+  });
+
+  it("ne vaut pas pour un autre dépôt", async () => {
+    sessionStorage.setItem(
+      "skarden.jeton-d-ecriture.sskorupski/autre",
+      "github_pat_ecriture",
+    );
+    const { page } = await visiter(FICHE);
+    expect(
+      page.find("[data-test=ajout-de-photos] input[type=file]").exists(),
+    ).toBe(false);
   });
 });

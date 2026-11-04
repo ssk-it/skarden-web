@@ -9,7 +9,9 @@ import {
   type Ref,
 } from "vue";
 import { useRoute } from "vue-router";
+import type { DepotDesigne } from "../depot/lecteur";
 import type { DepotDeFiches } from "../fiches/depot-de-fiches";
+import type { Suivi } from "../fiches/envoi-de-photos";
 
 export const CLE_DEPOT: InjectionKey<Ref<DepotDeFiches>> = Symbol("depot");
 
@@ -18,6 +20,24 @@ export function useDepot(): Ref<DepotDeFiches> {
   if (!depot)
     throw new Error("une page de fiche s'affiche dans le cadre d'un dépôt");
   return depot;
+}
+
+// RG-photo-postee-depuis-le-site : le cadre d'un dépôt tient le jeton d'écriture de l'onglet et le suivi de chaque envoi, qui survit à la relecture du dépôt une fois l'envoi fusionné.
+export interface Ecriture {
+  designe: Ref<DepotDesigne>;
+  jeton: Ref<string | undefined>;
+  saisirJeton(jeton: string): void;
+  envois: Map<string, Suivi>;
+  relire(): void;
+}
+
+export const CLE_ECRITURE: InjectionKey<Ecriture> = Symbol("ecriture");
+
+export function useEcriture(): Ecriture {
+  const ecriture = inject(CLE_ECRITURE);
+  if (!ecriture)
+    throw new Error("une page de fiche s'affiche dans le cadre d'un dépôt");
+  return ecriture;
 }
 
 // L'identifiant de la fiche désignée par l'adresse.

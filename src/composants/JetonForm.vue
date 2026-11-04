@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
-// RG-jeton-d-un-depot-prive : le jeton ne se saisit qu'ici, ne se réaffiche jamais, et s'oublie par un bouton.
-defineProps<{ memorise: boolean }>();
+// RG-jeton-d-un-depot-prive : le jeton de lecture ne se saisit qu'ici, ne se réaffiche jamais, et s'oublie par un bouton, qui oublie aussi le jeton d'écriture de l'onglet.
+defineProps<{ memorise: boolean; ecriture: boolean }>();
 const emit = defineEmits<{ saisir: [jeton: string]; oublier: [] }>();
 const jeton = ref("");
 
@@ -16,10 +16,15 @@ function saisir() {
 
 <template>
   <div class="jeton">
-    <p v-if="memorise">
-      Un jeton GitHub est mémorisé sur cet appareil.
+    <p v-if="memorise || ecriture">
+      <template v-if="memorise"
+        >Un jeton GitHub est mémorisé sur cet appareil.</template
+      >
+      <template v-if="ecriture">
+        Un jeton d'écriture vaut pour cet onglet.</template
+      >
       <button type="button" data-test="oublier-jeton" @click="emit('oublier')">
-        Oublier le jeton
+        Oublier {{ memorise && ecriture ? "les jetons" : "le jeton" }}
       </button>
     </p>
     <form v-else data-test="jeton" @submit.prevent="saisir">

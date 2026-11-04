@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
+import AjoutDePhotos from "../composants/AjoutDePhotos.vue";
 import FichesInvalides from "../composants/FichesInvalides.vue";
 import ListeDeCultures from "../composants/ListeDeCultures.vue";
 import MessageErreur from "../composants/MessageErreur.vue";
@@ -48,6 +49,10 @@ const { valeur, erreur, enCours } = useChargement(
       <PhotosDeFiche
         :photos="valeur.emplacement.photos"
         :legende="valeur.emplacement.nom"
+      />
+      <AjoutDePhotos
+        collection="emplacements"
+        :fichier="valeur.emplacement.id"
       />
       <TexteDeFiche :corps="valeur.emplacement.corps" />
       <h3>Cultures</h3>

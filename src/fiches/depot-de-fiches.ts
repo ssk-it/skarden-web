@@ -428,6 +428,11 @@ export class DepotDeFiches {
     return aLaUne.sort((a, b) => activite(b).localeCompare(activite(a)));
   }
 
+  // Le dossier où la collection range ses fiches, et sous `medias/` ses photos (RG-photo-postee-depuis-le-site).
+  dossierDe(collection: Collection): string | undefined {
+    return this.referentiel.dossiers[collection];
+  }
+
   lirePhoto(chemin: string): Promise<Blob> {
     return this.lecteur.lirePhoto(chemin);
   }
