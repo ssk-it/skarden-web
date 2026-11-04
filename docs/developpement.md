@@ -19,18 +19,19 @@ outils/          les scripts de mise en place : le dépôt GitHub, le déploieme
 
 ## Les gestes courants
 
-| Commande                            | Ce qu'elle fait                                    |
-| ----------------------------------- | -------------------------------------------------- |
-| `pnpm install`                      | Installe les dépendances, d'après `pnpm-lock.yaml` |
-| `pnpm dev`                          | Le serveur de développement de Vite                |
-| `pnpm typecheck`                    | Les types, par `vue-tsc`                           |
-| `pnpm lint`                         | ESLint, sans correction                            |
-| `pnpm format` / `pnpm format:check` | Prettier, qui corrige / qui constate               |
-| `pnpm test` / `pnpm test:watch`     | Vitest sous jsdom, une fois / en veille            |
-| `pnpm build`                        | Les types, puis le site statique dans `dist/`      |
+| Commande                            | Ce qu'elle fait                                                  |
+| ----------------------------------- | ---------------------------------------------------------------- |
+| `pnpm install`                      | Installe les dépendances, d'après `pnpm-lock.yaml`               |
+| `pnpm dev`                          | Le serveur de développement de Vite                              |
+| `pnpm typecheck`                    | Les types, par `vue-tsc`                                         |
+| `pnpm lint`                         | ESLint, sans correction                                          |
+| `pnpm format` / `pnpm format:check` | Prettier, qui corrige / qui constate                             |
+| `pnpm test` / `pnpm test:watch`     | Vitest sous jsdom et dans WebKit sans tête, une fois / en veille |
+| `pnpm build`                        | Les types, puis le site statique dans `dist/`                    |
 
 ## Les pièges d'outillage
 
 - **pnpm, jamais npm** : la version est fixée par `packageManager`, Node par `.nvmrc`.
+- **WebKit s'installe à part**, une fois par poste : `pnpm exec playwright install webkit`. Sans lui, les tests `*.navigateur.test.ts` échouent au lancement ; la CI l'installe à chaque passage.
 - **Un script d'installation est bloqué tant que `pnpm-workspace.yaml` ne l'autorise pas** (`allowBuilds`). En autoriser un se justifie dans ce fichier, en une ligne.
 - **Les icônes viennent du dossier `web/` du logo de Skarden** : les remplacer en bloc, avec `site.webmanifest`, plutôt qu'une à une.
