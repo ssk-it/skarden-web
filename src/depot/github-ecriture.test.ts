@@ -186,20 +186,87 @@ describe("l'écriture dans un dépôt GitHub", () => {
       });
     });
 
-    it("attend un run en cours, dont elle garde le lien", async () => {
+    it("attend un run en file, dont elle garde le lien", async () => {
       expect(
         await lire({
           corps: {
             workflow_runs: [
               {
-                status: "in_progress",
+                id: 7,
+                status: "queued",
                 conclusion: null,
-                html_url: "https://github.com/run/1",
+                html_url: "https://github.com/run/7",
               },
             ],
           },
         }),
-      ).toEqual({ etat: "en-attente", adresse: "https://github.com/run/1" });
+      ).toEqual({
+        etat: "en-attente",
+        adresse: "https://github.com/run/7",
+        statut: "en-file",
+      });
+    });
+
+    // L'avancement se lit : l'étape du job en cours, que l'Action nomme.
+    it("attend un run en cours, et dit l'étape qu'il exécute", async () => {
+      const { ecrivain: e } = ecrivain({
+        [RUNS]: {
+          corps: {
+            workflow_runs: [
+              {
+                id: 7,
+                status: "in_progress",
+                conclusion: null,
+                html_url: "https://github.com/run/7",
+              },
+            ],
+          },
+        },
+        [`GET ${API}/actions/runs/7/jobs`]: {
+          corps: {
+            jobs: [
+              {
+                status: "in_progress",
+                steps: [
+                  { name: "Set up job", status: "completed" },
+                  {
+                    name: "Convertir les photos et repousser la branche",
+                    status: "in_progress",
+                  },
+                  { name: "Complete job", status: "queued" },
+                ],
+              },
+            ],
+          },
+        },
+      });
+      expect(await e.conversion("photos/basilic-1", "commit-1")).toEqual({
+        etat: "en-attente",
+        adresse: "https://github.com/run/7",
+        statut: "en-cours",
+        etape: "Convertir les photos et repousser la branche",
+      });
+    });
+
+    it("attend un run en cours sans étape, quand ses jobs ne se lisent pas", async () => {
+      expect(
+        await lire({
+          corps: {
+            workflow_runs: [
+              {
+                id: 7,
+                status: "in_progress",
+                conclusion: null,
+                html_url: "https://github.com/run/7",
+              },
+            ],
+          },
+        }),
+      ).toEqual({
+        etat: "en-attente",
+        adresse: "https://github.com/run/7",
+        statut: "en-cours",
+      });
     });
 
     it("réussit sur un run réussi", async () => {
@@ -330,12 +397,21 @@ describe("l'écriture dans un dépôt GitHub", () => {
     };
 
     it("fusionnée", async () => {
-      expect(await lire({ ...ouverte, merged: true })).toBe("fusionnee");
+      expect(await lire({ ...ouverte, merged: true })).toEqual({
+        etat: "fusionnee",
+      });
     });
-    it("contrôles en cours", async () => {
+    it("contrôles en cours, comptés", async () => {
       expect(
-        await lire(ouverte, [{ status: "in_progress", conclusion: null }]),
-      ).toBe("controles-en-cours");
+        await lire(ouverte, [
+          { status: "completed", conclusion: "success" },
+          { status: "in_progress", conclusion: null },
+          { status: "queued", conclusion: null },
+        ]),
+      ).toEqual({
+        etat: "controles-en-cours",
+        controles: { finis: 1, total: 3 },
+      });
     });
     it("vérifiée quand tous les contrôles sont verts", async () => {
       expect(
@@ -343,7 +419,7 @@ describe("l'écriture dans un dépôt GitHub", () => {
           { status: "completed", conclusion: "success" },
           { status: "completed", conclusion: "skipped" },
         ]),
-      ).toBe("verifiee");
+      ).toMatchObject({ etat: "verifiee" });
     });
     it("contrôles rouges", async () => {
       expect(
@@ -351,14 +427,14 @@ describe("l'écriture dans un dépôt GitHub", () => {
           { status: "completed", conclusion: "success" },
           { status: "completed", conclusion: "failure" },
         ]),
-      ).toBe("controles-rouges");
+      ).toMatchObject({ etat: "controles-rouges" });
     });
     it("à mettre à jour quand la branche par défaut a avancé", async () => {
       expect(
         await lire({ ...ouverte, mergeable_state: "behind" }, [
           { status: "completed", conclusion: "success" },
         ]),
-      ).toBe("a-mettre-a-jour");
+      ).toMatchObject({ etat: "a-mettre-a-jour" });
     });
   });
 });

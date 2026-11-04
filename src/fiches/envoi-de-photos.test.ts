@@ -20,6 +20,7 @@ async function poster(
   const ecrivain = ecrivainEnMemoire(contenus, scenario);
   const suivis: Suivi[] = [];
   let attentes = 0;
+  let instant = 0;
   const fin = await posterPhotos(
     ecrivain,
     {
@@ -28,7 +29,12 @@ async function poster(
       photos: [new Blob(["photo-1"]), new Blob(["photo-2"])],
     },
     (suivi) => suivis.push(suivi),
-    { maintenant: INSTANT, attendre: async () => void attentes++ },
+    {
+      maintenant: INSTANT,
+      attendre: async () => void attentes++,
+      // Chaque lecture de l'horloge avance d'une seconde.
+      horloge: () => (instant += 1000),
+    },
   );
   return { ecrivain, suivis, fin, attentes };
 }
@@ -80,11 +86,72 @@ describe("l'envoi de photos", () => {
     expect(suivis.map((s) => s.enCours).filter(Boolean)).toEqual(
       expect.arrayContaining(["envoi", "conversion", "verification", "fusion"]),
     );
-    expect(fin).toEqual({
+    expect(fin).toMatchObject({
       faites: ["envoi", "conversion", "verification", "fusion"],
       aMettreAJour: false,
       demande: "https://github.test/pull/1",
     });
+    expect(fin.echec).toBeUndefined();
+  });
+
+  // L'avancement se voit : chaque étape garde l'heure de son début et de sa fin, d'où le site tire sa durée.
+  it("date le début et la fin de chaque étape", async () => {
+    const { suivis, fin } = await poster();
+    expect(suivis[0]?.debuts.envoi).toBeTypeOf("number");
+    for (const etape of [
+      "envoi",
+      "conversion",
+      "verification",
+      "fusion",
+    ] as const) {
+      const debut = fin.debuts[etape] as number;
+      expect(debut).toBeTypeOf("number");
+      expect(fin.fins[etape]).toBeGreaterThan(debut);
+    }
+    expect(fin.debuts.conversion).toBeGreaterThanOrEqual(
+      fin.fins.envoi as number,
+    );
+  });
+
+  it("garde le lien de l'Action dès qu'il existe, et dit où elle en est", async () => {
+    const { suivis, fin } = await poster({
+      conversion: [
+        { etat: "en-attente" },
+        {
+          etat: "en-attente",
+          adresse: "https://github.test/run/7",
+          statut: "en-file",
+        },
+        {
+          etat: "en-attente",
+          adresse: "https://github.test/run/7",
+          statut: "en-cours",
+          etape: "Convertir les photos",
+        },
+        { etat: "reussie" },
+      ],
+    });
+    expect(suivis.map((s) => s.action)).toContain("https://github.test/run/7");
+    expect(suivis.map((s) => s.conversion)).toEqual(
+      expect.arrayContaining([
+        { statut: "en-file" },
+        { statut: "en-cours", etape: "Convertir les photos" },
+      ]),
+    );
+    expect(fin.action).toBe("https://github.test/run/7");
+  });
+
+  it("compte les contrôles terminés pendant la vérification", async () => {
+    const { suivis } = await poster({
+      demande: [
+        { etat: "controles-en-cours", controles: { finis: 1, total: 3 } },
+        { etat: "verifiee", controles: { finis: 3, total: 3 } },
+        "fusionnee",
+      ],
+    });
+    expect(suivis.map((s) => s.controles)).toEqual(
+      expect.arrayContaining([{ finis: 1, total: 3 }]),
+    );
   });
 
   it("dit qu'une demande attend d'être mise à jour, puis reprend", async () => {

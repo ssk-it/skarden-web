@@ -1,6 +1,11 @@
 // RG-photo-postee-depuis-le-site, ADR-photos-postees-par-une-branche : le chemin d'un envoi de photos, de la branche à la fusion. Chaque étape se dit ; une étape qui échoue s'arrête là, et la photo n'atteint pas la branche par défaut.
 
-import { EcritureRefusee, type EcrivainDuDepot } from "../depot/ecrivain";
+import {
+  EcritureRefusee,
+  type AvancementDeLAction,
+  type Controles,
+  type EcrivainDuDepot,
+} from "../depot/ecrivain";
 import { FichierIntrouvable } from "../depot/lecteur";
 import {
   FicheNonModifiable,
@@ -30,6 +35,14 @@ export interface Suivi {
   aMettreAJour: boolean;
   demande?: string;
   echec?: Echec;
+  // L'heure, en millisecondes, où chaque étape a commencé et fini : le site en tire leur durée.
+  debuts: Partial<Record<Etape, number>>;
+  fins: Partial<Record<Etape, number>>;
+  // L'Action qui convertit, dès que GitHub l'a créée, et où elle en est.
+  action?: string;
+  conversion?: AvancementDeLAction;
+  // Les contrôles de la demande de fusion, comptés.
+  controles?: Controles;
 }
 
 export interface Envoi {
@@ -43,6 +56,7 @@ export interface Envoi {
 export interface OptionsDEnvoi {
   maintenant?: Date;
   attendre?: (millisecondes: number) => Promise<void>;
+  horloge?: () => number;
 }
 
 // Une conversion prend une à deux minutes ; les contrôles et la fusion, quelques minutes de plus.
@@ -56,21 +70,48 @@ export async function posterPhotos(
   ecrivain: EcrivainDuDepot,
   { dossier, fichier, photos }: Envoi,
   signaler: (suivi: Suivi) => void,
-  { maintenant = new Date(), attendre = attendreVraiment }: OptionsDEnvoi = {},
+  {
+    maintenant = new Date(),
+    attendre = attendreVraiment,
+    horloge = Date.now,
+  }: OptionsDEnvoi = {},
 ): Promise<Suivi> {
-  const suivi: Suivi = { faites: [], aMettreAJour: false };
+  const suivi: Suivi = {
+    faites: [],
+    aMettreAJour: false,
+    debuts: {},
+    fins: {},
+  };
   const publier = () => {
-    const copie = { ...suivi, faites: [...suivi.faites] };
+    const copie = {
+      ...suivi,
+      faites: [...suivi.faites],
+      debuts: { ...suivi.debuts },
+      fins: { ...suivi.fins },
+    };
     signaler(copie);
     return copie;
   };
   const commencer = (etape: Etape) => {
     suivi.enCours = etape;
+    suivi.debuts[etape] = horloge();
     publier();
   };
   const finir = () => {
-    if (suivi.enCours) suivi.faites.push(suivi.enCours);
+    if (suivi.enCours) {
+      suivi.faites.push(suivi.enCours);
+      suivi.fins[suivi.enCours] = horloge();
+    }
     suivi.enCours = undefined;
+  };
+  // Ne publie que ce qui change : la zone vivante n'annonce pas deux fois la même chose.
+  const noter = <C extends "action" | "conversion" | "controles">(
+    champ: C,
+    valeur: Suivi[C],
+  ) => {
+    if (JSON.stringify(suivi[champ]) === JSON.stringify(valeur)) return;
+    suivi[champ] = valeur;
+    publier();
   };
   const echouer = (echec: Echec) => {
     suivi.echec = echec;
@@ -104,7 +145,6 @@ export async function posterPhotos(
     finir();
 
     commencer("conversion");
-    let action: string | undefined;
     let convertie = false;
     for (let tour = 0; tour < CONVERSION.tours && !convertie; tour++) {
       const conversion = await ecrivain.conversion(branche, commit);
@@ -117,12 +157,21 @@ export async function posterPhotos(
         });
       if (conversion.etat === "reussie") convertie = true;
       else {
-        action = conversion.adresse ?? action;
+        if (conversion.adresse) noter("action", conversion.adresse);
+        if (conversion.statut)
+          noter("conversion", {
+            statut: conversion.statut,
+            ...(conversion.etape && { etape: conversion.etape }),
+          });
         await attendre(CONVERSION.intervalle);
       }
     }
     if (!convertie)
-      return echouer({ raison: "conversion-trop-longue", adresse: action });
+      return echouer({
+        raison: "conversion-trop-longue",
+        adresse: suivi.action,
+      });
+    suivi.conversion = undefined;
     finir();
 
     commencer("verification");
@@ -148,7 +197,8 @@ export async function posterPhotos(
       throw erreur;
     }
     for (let tour = 0; tour < DEMANDE.tours; tour++) {
-      const etat = await ecrivain.etatDeLaDemande(demande);
+      const { etat, controles } = await ecrivain.etatDeLaDemande(demande);
+      if (controles && etat !== "fusionnee") noter("controles", controles);
       if (etat === "controles-rouges")
         return echouer({
           raison: "controles-rouges",

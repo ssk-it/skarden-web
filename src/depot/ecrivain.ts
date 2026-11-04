@@ -13,8 +13,14 @@ export interface FichierEcrit {
   contenu: Blob | string;
 }
 
+// Où en est l'Action qui convertit, pendant l'attente : en file, ou en cours sur l'une de ses étapes.
+export interface AvancementDeLAction {
+  statut: "en-file" | "en-cours";
+  etape?: string;
+}
+
 export type EtatDeLaConversion =
-  | { etat: "en-attente"; adresse?: string }
+  | ({ etat: "en-attente"; adresse?: string } & Partial<AvancementDeLAction>)
   | { etat: "reussie" }
   | { etat: "echouee"; adresse: string }
   | { etat: "absente" };
@@ -32,6 +38,17 @@ export type EtatDeLaDemande =
   | "a-mettre-a-jour"
   | "fusionnee";
 
+export interface Controles {
+  finis: number;
+  total: number;
+}
+
+export interface SuiviDeLaDemande {
+  etat: EtatDeLaDemande;
+  // Les contrôles du dernier commit de la demande, quand elle n'est pas encore fusionnée.
+  controles?: Controles;
+}
+
 export interface EcrivainDuDepot {
   lireFicheSurLaBase(chemin: string): Promise<FicheSurLaBase>;
   // Un seul commit sur une branche neuve partie de `base` ; rend le SHA du commit.
@@ -48,7 +65,7 @@ export interface EcrivainDuDepot {
     corps: string;
   }): Promise<DemandeDeFusion>;
   demanderLaFusionAutomatique(demande: DemandeDeFusion): Promise<void>;
-  etatDeLaDemande(demande: DemandeDeFusion): Promise<EtatDeLaDemande>;
+  etatDeLaDemande(demande: DemandeDeFusion): Promise<SuiviDeLaDemande>;
 }
 
 export type OuvrirEcrivain = (

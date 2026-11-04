@@ -6,6 +6,7 @@ import {
   type DemandeDeFusion,
   type EcrivainDuDepot,
   type EtatDeLaDemande,
+  type SuiviDeLaDemande,
 } from "./ecrivain";
 import { FichierIntrouvable, type DepotDesigne } from "./lecteur";
 
@@ -71,6 +72,20 @@ export function ecrivainGithub(
     }));
 
   const chemin = (c: string) => c.split("/").map(encodeURIComponent).join("/");
+
+  // L'étape que l'Action exécute, pour dire où elle en est ; un détail, que l'envoi n'attend pas : faute de la lire, il s'en passe.
+  const etapeEnCours = async (run: number) => {
+    try {
+      const { jobs } = await json<{
+        jobs: { status: string; steps?: { name: string; status: string }[] }[];
+      }>(`${api}/actions/runs/${run}/jobs`);
+      return jobs
+        .flatMap((job) => job.steps ?? [])
+        .find((etape) => etape.status === "in_progress")?.name;
+    } catch {
+      return undefined;
+    }
+  };
 
   return {
     async lireFicheSurLaBase(c) {
@@ -141,6 +156,7 @@ export function ecrivainGithub(
         );
       const { workflow_runs } = (await reponse.json()) as {
         workflow_runs: {
+          id: number;
           status: string;
           conclusion: string | null;
           html_url: string;
@@ -148,8 +164,17 @@ export function ecrivainGithub(
       };
       const [run] = workflow_runs;
       if (!run) return { etat: "en-attente" };
-      if (run.status !== "completed")
-        return { etat: "en-attente", adresse: run.html_url };
+      if (run.status !== "in_progress" && run.status !== "completed")
+        return { etat: "en-attente", adresse: run.html_url, statut: "en-file" };
+      if (run.status === "in_progress") {
+        const etape = await etapeEnCours(run.id);
+        return {
+          etat: "en-attente",
+          adresse: run.html_url,
+          statut: "en-cours",
+          ...(etape && { etape }),
+        };
+      }
       return run.conclusion === "success"
         ? { etat: "reussie" }
         : { etat: "echouee", adresse: run.html_url };
@@ -199,31 +224,35 @@ export function ecrivainGithub(
       );
     },
 
-    async etatDeLaDemande(demande): Promise<EtatDeLaDemande> {
+    async etatDeLaDemande(demande): Promise<SuiviDeLaDemande> {
       const pr = await json<{
         merged: boolean;
         mergeable_state: string;
         head: { sha: string };
       }>(`${api}/pulls/${demande.numero}`);
-      if (pr.merged) return "fusionnee";
+      if (pr.merged) return { etat: "fusionnee" };
       const { check_runs } = await json<{
         check_runs: { status: string; conclusion: string | null }[];
       }>(`${api}/commits/${pr.head.sha}/check-runs?per_page=100`);
-      if (
-        check_runs.some(
-          (c) =>
-            c.status === "completed" &&
-            !CONCLUSIONS_VERTES.includes(c.conclusion ?? ""),
+      const controles = {
+        finis: check_runs.filter((c) => c.status === "completed").length,
+        total: check_runs.length,
+      };
+      const etat = ((): EtatDeLaDemande => {
+        if (
+          check_runs.some(
+            (c) =>
+              c.status === "completed" &&
+              !CONCLUSIONS_VERTES.includes(c.conclusion ?? ""),
+          )
         )
-      )
-        return "controles-rouges";
-      if (pr.mergeable_state === "behind") return "a-mettre-a-jour";
-      if (
-        check_runs.length &&
-        check_runs.every((c) => c.status === "completed")
-      )
-        return "verifiee";
-      return "controles-en-cours";
+          return "controles-rouges";
+        if (pr.mergeable_state === "behind") return "a-mettre-a-jour";
+        if (controles.total && controles.finis === controles.total)
+          return "verifiee";
+        return "controles-en-cours";
+      })();
+      return { etat, controles };
     },
   };
 }
