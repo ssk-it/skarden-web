@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { lireDepotSaisi, memoireDuVisiteur } from "./visiteur";
+import {
+  lireDepotSaisi,
+  memoireDeLOnglet,
+  memoireDuVisiteur,
+} from "./visiteur";
 
 describe("lireDepotSaisi", () => {
   it.each([
@@ -65,5 +69,33 @@ describe("memoireDuVisiteur", () => {
     } finally {
       Storage.prototype.getItem = original;
     }
+  });
+});
+
+// RG-jeton-d-un-depot-prive : le jeton d'écriture ne vaut que pour un dépôt et le temps de l'onglet, jamais sur l'appareil.
+describe("la mémoire de l'onglet", () => {
+  const SKARDEN = { proprietaire: "sskorupski", depot: "skarden" };
+  const AUTRE = { proprietaire: "sskorupski", depot: "autre" };
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it("garde le jeton d'écriture d'un dépôt le temps de l'onglet, et nulle part sur l'appareil", () => {
+    memoireDeLOnglet.retenirJetonDEcriture(SKARDEN, "github_pat_ecriture");
+    expect(memoireDeLOnglet.jetonDEcriture(SKARDEN)).toBe(
+      "github_pat_ecriture",
+    );
+    expect(memoireDeLOnglet.jetonDEcriture(AUTRE)).toBeUndefined();
+    expect(localStorage.length).toBe(0);
+    expect(
+      sessionStorage.getItem("skarden.jeton-d-ecriture.sskorupski/skarden"),
+    ).toBe("github_pat_ecriture");
+  });
+
+  it("l'oublie", () => {
+    memoireDeLOnglet.retenirJetonDEcriture(SKARDEN, "github_pat_ecriture");
+    memoireDeLOnglet.oublierJetonDEcriture(SKARDEN);
+    expect(memoireDeLOnglet.jetonDEcriture(SKARDEN)).toBeUndefined();
   });
 });

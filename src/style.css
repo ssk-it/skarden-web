@@ -165,6 +165,41 @@ button {
   outline-offset: -6px;
 }
 
+/* RG-photo-postee-depuis-le-site : l'ajout de photos, sous la galerie. */
+.ajout {
+  margin-top: 1rem;
+}
+
+.apercus {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.apercus li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.apercus img {
+  width: 6rem;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.suivi:focus {
+  outline: none;
+}
+
+.suivi:focus-visible {
+  outline: 3px solid var(--feuille);
+  outline-offset: 2px;
+}
+
 .pied {
   margin-top: 3rem;
 }

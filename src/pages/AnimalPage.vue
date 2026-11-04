@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
+import AjoutDePhotos from "../composants/AjoutDePhotos.vue";
 import CalendrierDesModes from "../composants/CalendrierDesModes.vue";
 import FichesInvalides from "../composants/FichesInvalides.vue";
 import ListeDElevages from "../composants/ListeDElevages.vue";
@@ -130,6 +131,7 @@ const { valeur, erreur, enCours } = useChargement(
         :photos="valeur.animal.photos"
         :legende="valeur.animal.nom"
       />
+      <AjoutDePhotos collection="animaux" :fichier="valeur.animal.id" />
       <TexteDeFiche :corps="valeur.animal.corps" />
     </article>
   </main>

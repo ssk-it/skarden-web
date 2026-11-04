@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
+import AjoutDePhotos from "../composants/AjoutDePhotos.vue";
 import FichesInvalides from "../composants/FichesInvalides.vue";
 import MessageErreur from "../composants/MessageErreur.vue";
 import PhotosDeFiche from "../composants/PhotosDeFiche.vue";
@@ -183,6 +184,7 @@ const { valeur, erreur, enCours } = useChargement(
         :photos="valeur.elevage.photos"
         :legende="valeur.elevage.id"
       />
+      <AjoutDePhotos collection="elevages" :fichier="valeur.elevage.id" />
       <TexteDeFiche :corps="valeur.elevage.corps" />
     </article>
   </main>

@@ -1,4 +1,4 @@
-// Ce que le site retient du visiteur, sur son appareil : le dernier dépôt lu (RG-depot-designe-par-le-visiteur) et le jeton d'un dépôt privé (RG-jeton-d-un-depot-prive). Rien d'autre, et jamais dans une adresse.
+// Ce que le site retient du visiteur, sur son appareil : le dernier dépôt lu (RG-depot-designe-par-le-visiteur) et le jeton d'un dépôt privé (RG-jeton-d-un-depot-prive) ; le temps de l'onglet seulement, le jeton d'écriture d'un dépôt. Rien d'autre, et jamais dans une adresse.
 
 import type { DepotDesigne } from "./lecteur";
 
@@ -37,18 +37,22 @@ const CLE_JETON = "skarden.jeton";
 const CLE_DEPOT = "skarden.dernier-depot";
 
 // Le stockage peut être refusé (navigation privée, données de site bloquées) : le site fonctionne alors sans mémoire.
-function lire(cle: string): string | undefined {
+function lire(cle: string, stockage = () => localStorage): string | undefined {
   try {
-    return localStorage.getItem(cle) ?? undefined;
+    return stockage().getItem(cle) ?? undefined;
   } catch {
     return undefined;
   }
 }
 
-function ecrire(cle: string, valeur: string | undefined) {
+function ecrire(
+  cle: string,
+  valeur: string | undefined,
+  stockage = () => localStorage,
+) {
   try {
-    if (valeur === undefined) localStorage.removeItem(cle);
-    else localStorage.setItem(cle, valeur);
+    if (valeur === undefined) stockage().removeItem(cle);
+    else stockage().setItem(cle, valeur);
   } catch {
     // Rien à faire : la valeur vaudra le temps de la page.
   }
@@ -64,4 +68,17 @@ export const memoireDuVisiteur = {
   },
   retenirDepot: ({ proprietaire, depot }: DepotDesigne) =>
     ecrire(CLE_DEPOT, `${proprietaire}/${depot}`),
+};
+
+// RG-jeton-d-un-depot-prive : le jeton d'écriture ne survit pas à l'onglet. Il est rangé sous son dépôt : il ne vaut pour aucun autre.
+const cleDEcriture = ({ proprietaire, depot }: DepotDesigne) =>
+  `skarden.jeton-d-ecriture.${proprietaire}/${depot}`;
+const onglet = () => sessionStorage;
+
+export const memoireDeLOnglet = {
+  jetonDEcriture: (depot: DepotDesigne) => lire(cleDEcriture(depot), onglet),
+  retenirJetonDEcriture: (depot: DepotDesigne, jeton: string) =>
+    ecrire(cleDEcriture(depot), jeton, onglet),
+  oublierJetonDEcriture: (depot: DepotDesigne) =>
+    ecrire(cleDEcriture(depot), undefined, onglet),
 };
