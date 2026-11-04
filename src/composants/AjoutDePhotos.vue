@@ -6,11 +6,13 @@ import {
   onBeforeUnmount,
   onMounted,
   ref,
+  watch,
 } from "vue";
 import { CLE_OUVRIR_ECRIVAIN, ouvrirEcrivainSurGithub } from "../depot/ecrire";
 import { posterPhotos, type Etape } from "../fiches/envoi-de-photos";
 import type { Collection } from "../fiches/format";
 import { useDepot, useEcriture } from "../pages/contexte";
+import { dureeLisible } from "./duree";
 import { reduirePhoto } from "./reduction";
 
 // RG-photo-postee-depuis-le-site : depuis la page d'une fiche, une ou plusieurs photos en un seul envoi, réduites avant de partir (RG-photo-reduite-avant-l-envoi), avec le jeton d'écriture de l'onglet (RG-qui-peut-poster-une-photo).
@@ -85,7 +87,25 @@ function liberer() {
   choisies.value = [];
 }
 
-onBeforeUnmount(liberer);
+// L'horloge de l'écran : la durée de l'étape en cours avance d'elle-même tant que l'envoi n'est pas fini.
+const instant = ref(Date.now());
+let minuterie: ReturnType<typeof setInterval> | undefined;
+watch(
+  envoiEnCours,
+  (enCours) => {
+    clearInterval(minuterie);
+    minuterie = undefined;
+    instant.value = Date.now();
+    if (enCours)
+      minuterie = setInterval(() => (instant.value = Date.now()), 1000);
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  liberer();
+  clearInterval(minuterie);
+});
 
 // Une fois l'envoi fusionné, le dépôt se relit et la page se remonte : le focus, tombé sur le corps de la page, revient au suivi.
 onMounted(() => {
@@ -124,6 +144,57 @@ const ETAPES: { etape: Etape; enCours: string; faite: string }[] = [
   },
   { etape: "fusion", enCours: "Fusion dans la fiche", faite: "Fusionnées" },
 ];
+
+const ETATS = {
+  faite: { mot: "Fait", marque: "✓" },
+  "en-cours": { mot: "En cours", marque: "●" },
+  echouee: { mot: "Échec", marque: "✗" },
+  "a-venir": { mot: "À venir", marque: "○" },
+} as const;
+
+const numeroEnCours = computed(() => {
+  const enCours = suivi.value?.enCours;
+  return enCours && ETAPES.findIndex((e) => e.etape === enCours) + 1;
+});
+
+function duree(etape: Etape) {
+  const debut = suivi.value?.debuts[etape];
+  if (debut === undefined) return "";
+  const fin = suivi.value?.fins[etape];
+  if (fin !== undefined) return `en ${dureeLisible(fin - debut)}`;
+  if (etatDe(etape) === "en-cours")
+    return `depuis ${dureeLisible(instant.value - debut)}`;
+  return "";
+}
+
+// Ce que l'étape en cours attend, lu sur GitHub : l'Action qui convertit, puis les contrôles de la demande.
+function detail(etape: Etape) {
+  if (etatDe(etape) !== "en-cours") return "";
+  if (etape === "conversion") {
+    const conversion = suivi.value?.conversion;
+    if (conversion?.statut === "en-file") return "Action en file d'attente";
+    if (conversion?.etape) return `Action en cours : « ${conversion.etape} »`;
+    if (conversion) return "Action en cours";
+    return "En attente de l'Action";
+  }
+  if (etape === "verification") {
+    const controles = suivi.value?.controles;
+    if (!controles?.total) return "En attente des contrôles";
+    const s = controles.finis > 1 ? "s" : "";
+    return `${controles.finis} contrôle${s} sur ${controles.total} terminé${s}`;
+  }
+  return "";
+}
+
+// L'annonce de la zone vivante : l'étape et ce qu'elle attend, sans la durée, qui changerait chaque seconde.
+const annonce = computed(() => {
+  if (!suivi.value || suivi.value.echec) return "";
+  if (fusionne.value) return "Les photos sont sur la fiche.";
+  const enCours = ETAPES.find((e) => e.etape === suivi.value?.enCours);
+  if (!enCours) return "";
+  const precision = detail(enCours.etape);
+  return `Étape ${numeroEnCours.value} sur ${ETAPES.length} : ${enCours.enCours}${precision ? `. ${precision}` : ""}.`;
+});
 
 function etatDe(etape: Etape) {
   if (suivi.value?.faites.includes(etape)) return "faite";
@@ -181,24 +252,56 @@ const kilo = (photo?: Blob) =>
         </button>
       </p>
 
-      <!-- Présente avant l'envoi : une zone vivante n'annonce que ce qui change en elle. -->
-      <div ref="zoneDeSuivi" aria-live="polite" tabindex="-1" class="suivi">
-        <ol v-if="suivi" class="etapes">
-          <li v-for="{ etape, enCours, faite } in ETAPES" :key="etape">
-            <template v-if="etatDe(etape) === 'faite'">{{ faite }}</template>
-            <template v-else-if="etatDe(etape) === 'en-cours'"
-              >{{ enCours }}…</template
+      <div ref="zoneDeSuivi" tabindex="-1" class="suivi" data-test="suivi">
+        <!-- Présente avant l'envoi : une zone vivante n'annonce que ce qui change en elle. -->
+        <p aria-live="polite" class="visuellement-cache">{{ annonce }}</p>
+        <template v-if="suivi">
+          <p v-if="numeroEnCours" class="avancement">
+            Étape {{ numeroEnCours }} sur {{ ETAPES.length }}
+          </p>
+          <progress
+            :max="ETAPES.length"
+            :value="suivi.faites.length"
+            aria-label="Avancement de l'envoi"
+          ></progress>
+          <ol class="etapes">
+            <li
+              v-for="{ etape, enCours, faite } in ETAPES"
+              :key="etape"
+              :class="`etape-${etatDe(etape)}`"
+              :aria-current="etatDe(etape) === 'en-cours' ? 'step' : undefined"
             >
-            <template v-else-if="etatDe(etape) === 'echouee'"
-              >{{ enCours }} : échec</template
-            >
-            <template v-else>{{ enCours }} : à venir</template>
-          </li>
-        </ol>
+              <span class="marque" aria-hidden="true">{{
+                ETATS[etatDe(etape)].marque
+              }}</span>
+              <span class="libelle">{{
+                etatDe(etape) === "faite" ? faite : enCours
+              }}</span>
+              <span class="etat"
+                >{{ ETATS[etatDe(etape)].mot
+                }}<template v-if="duree(etape)"
+                  >, {{ duree(etape) }}</template
+                ></span
+              >
+              <span v-if="detail(etape)" class="detail">{{
+                detail(etape)
+              }}</span>
+              <a
+                v-if="etape === 'conversion' && suivi.action"
+                :href="suivi.action"
+                >Voir l'Action</a
+              >
+              <a
+                v-if="etape === 'verification' && suivi.demande"
+                :href="suivi.demande"
+                >Voir la demande de fusion</a
+              >
+            </li>
+          </ol>
+        </template>
         <p v-if="suivi?.aMettreAJour">
           La branche par défaut a avancé depuis l'envoi : la demande de fusion
           attend d'être mise à jour.
-          <a :href="suivi?.demande">Voir la demande de fusion</a>
         </p>
         <p v-if="fusionne">Les photos sont sur la fiche.</p>
       </div>

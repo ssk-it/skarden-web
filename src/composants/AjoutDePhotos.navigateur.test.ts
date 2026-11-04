@@ -83,6 +83,19 @@ const bouton = (texte: RegExp) =>
     texte.test(b.textContent ?? ""),
   );
 
+const etapes = () => [
+  ...(ajout()?.querySelectorAll<HTMLElement>("[data-test=suivi] ol > li") ??
+    []),
+];
+const annonce = () =>
+  ajout()?.querySelector("[aria-live=polite]")?.textContent ?? "";
+
+async function envoyerUnePhoto() {
+  await choisir(await photo("jardin.png"));
+  await expect.poll(() => bouton(/Envoyer 1 photo/)?.disabled).toBe(false);
+  bouton(/Envoyer 1 photo/)?.click();
+}
+
 describe("l'ajout de photos à une fiche", () => {
   // RG-photo-reduite-avant-l-envoi : le site montre ce qui partira, et son poids, avant l'envoi.
   it("montre chaque photo réduite et son poids avant l'envoi, et refuse celle qu'il ne sait pas lire", async () => {
@@ -126,11 +139,12 @@ describe("l'ajout de photos à une fiche", () => {
     // WCAG 2.4.3 : le bouton disparaît, le focus passe au suivi de l'envoi, annoncé par une zone vivante présente dès avant l'envoi.
     expect(ajout()?.querySelector("[aria-live=polite]")).toBeTruthy();
     const suiviAuFocus = () =>
-      document.activeElement === ajout()?.querySelector("[aria-live=polite]");
+      document.activeElement === ajout()?.querySelector("[data-test=suivi]");
     await expect.poll(suiviAuFocus).toBe(true);
     await expect.poll(() => ajout()?.textContent).toContain("Fusionnées");
     for (const etape of ["Envoyées", "Converties", "Vérifiées", "Fusionnées"])
       expect(ajout()?.textContent).toContain(etape);
+    expect(etapes().every((li) => li.textContent?.includes("Fait"))).toBe(true);
     expect(jetons).toEqual(["github_pat_ecriture"]);
     const [commit] = ecrivain.commits;
     const envoyee = commit?.fichiers[0]?.contenu as Blob;
@@ -157,5 +171,62 @@ describe("l'ajout de photos à une fiche", () => {
     expect(ajout()?.querySelector("[role=alert] a")?.getAttribute("href")).toBe(
       "https://github.test/run/7",
     );
+  });
+
+  // WCAG 1.4.1 : l'état de chaque étape se dit en toutes lettres, pas par la seule couleur ; l'étape en cours porte aria-current.
+  it("dit l'état de chaque étape, la durée de l'étape en cours et où en est l'Action, avec son lien", async () => {
+    await visiter({
+      conversion: [
+        {
+          etat: "en-attente",
+          adresse: "https://github.test/run/7",
+          statut: "en-cours",
+          etape: "Convertir les photos",
+        },
+      ],
+    });
+    await envoyerUnePhoto();
+    await expect
+      .poll(() => ajout()?.querySelector("[aria-current=step]")?.textContent)
+      .toContain("Convertir les photos");
+    const [envoi, conversion, verification, fusion] = etapes();
+    expect(envoi?.textContent).toMatch(/Envoyées.*Fait.*en \d+ s/s);
+    expect(conversion?.getAttribute("aria-current")).toBe("step");
+    expect(conversion?.textContent).toMatch(
+      /Conversion en pointeurs Git LFS.*En cours.*depuis \d+ s/s,
+    );
+    expect(conversion?.textContent).toContain("Action en cours");
+    expect(verification?.textContent).toContain("À venir");
+    expect(fusion?.textContent).toContain("À venir");
+    expect(conversion?.querySelector("a")?.getAttribute("href")).toBe(
+      "https://github.test/run/7",
+    );
+    expect(ajout()?.textContent).toContain("Étape 2 sur 4");
+
+    // La durée avance d'elle-même ; la zone vivante, elle, ne l'égrène pas.
+    const avant = conversion?.textContent;
+    await expect
+      .poll(() => conversion?.textContent, { timeout: 3000 })
+      .not.toBe(avant);
+    expect(annonce()).toContain("Étape 2 sur 4");
+    expect(annonce()).toContain("Convertir les photos");
+    expect(annonce()).not.toContain("depuis");
+  });
+
+  it("compte les contrôles de la demande de fusion, avec son lien", async () => {
+    await visiter({
+      demande: [
+        { etat: "controles-en-cours", controles: { finis: 1, total: 3 } },
+      ],
+    });
+    await envoyerUnePhoto();
+    await expect
+      .poll(() => ajout()?.querySelector("[aria-current=step]")?.textContent)
+      .toContain("1 contrôle sur 3 terminé");
+    const verification = etapes()[2];
+    expect(verification?.querySelector("a")?.getAttribute("href")).toBe(
+      "https://github.test/pull/1",
+    );
+    expect(annonce()).toContain("1 contrôle sur 3 terminé");
   });
 });

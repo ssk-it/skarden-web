@@ -5,13 +5,14 @@ import {
   type EtatDeLaConversion,
   type EtatDeLaDemande,
   type FichierEcrit,
+  type SuiviDeLaDemande,
 } from "./ecrivain";
 import { FichierIntrouvable } from "./lecteur";
 
 export interface ScenarioDEcriture {
   // Ce que rendent les lectures successives ; la dernière se répète.
   conversion?: EtatDeLaConversion[];
-  demande?: EtatDeLaDemande[];
+  demande?: (EtatDeLaDemande | SuiviDeLaDemande)[];
   refus?: Partial<Record<keyof EcrivainDuDepot, EcritureRefusee>>;
 }
 
@@ -74,7 +75,8 @@ export function ecrivainEnMemoire(
     },
     etatDeLaDemande: async () => {
       refuser("etatDeLaDemande");
-      return suivant(scenario.demande, "fusionnee");
+      const etat = suivant(scenario.demande, "fusionnee");
+      return typeof etat === "string" ? { etat } : etat;
     },
   };
 }

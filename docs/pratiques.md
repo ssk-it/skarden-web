@@ -25,6 +25,7 @@ Le site n'écrit que pour poster des photos, dans le dépôt qu'il lit, par des 
 - **La réduction** (`src/composants/reduction.ts`, `RG-photo-reduite-avant-l-envoi`) : chaque photo se redessine dans le sens où on l'a prise et se réencode en JPEG, 2 560 pixels au plus, qualité 0,85, ce qui retire ses métadonnées. Une photo que le navigateur ne décode pas est refusée.
 - **La conversion** se lit sur le contrat de `docs/pratiques.md` de `sskorupski/skarden` : le run de `photos-en-lfs.yml` dont `head_sha` est le commit du site. Un dépôt qui n'a pas ce workflow ne reçoit aucune demande de fusion.
 - **Le suivi passe par le jeton d'écriture** : il fait partie de l'envoi, et sans jeton l'API n'admet que 60 appels par heure.
+- **L'avancement se lit** (`src/composants/AjoutDePhotos.vue`) : chaque étape dit son état en toutes lettres — fait, en cours, à venir, échec —, la marque et la couleur ne faisant que le redoubler, et l'étape en cours porte `aria-current="step"`. Chaque étape garde l'heure de son début et de sa fin : l'étape en cours montre depuis combien de temps elle dure, une étape faite en combien de temps. Pendant la conversion, le site lit le statut du run (en file, en cours) et l'étape que son job exécute ; pendant la vérification, combien de contrôles sont terminés. Le lien de l'Action et celui de la demande de fusion paraissent dès qu'ils existent. Une zone vivante, polie, annonce l'étape et ce qu'elle attend, jamais la durée, qui changerait chaque seconde.
 
 ## Les tests
 
