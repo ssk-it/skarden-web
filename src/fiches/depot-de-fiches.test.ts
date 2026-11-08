@@ -403,6 +403,88 @@ describe("DepotDeFiches, côté animal", () => {
     expect(elevages?.[0]?.derniere?.date).toBe("2026-11-03");
   });
 
+  // RG-accueil-realisations-en-cours
+  describe("les réalisations en cours de l'accueil", () => {
+    const enCours = (champs: string) =>
+      fiche(
+        `statut: en-cours\nrecette_version: 1\nfin: null\ningredients: []\n${champs}`,
+      );
+
+    it("viennent avec leur recette, leurs phases sans fin et la dernière entrée de leur journal", async () => {
+      const { depot } = await ouvrir();
+      const { realisations } = await depot.accueil(11);
+      expect(
+        realisations?.map((r) => [
+          r.realisation.id,
+          r.recette?.nom,
+          r.phasesEnCours.map((p) => p.id),
+          r.derniere?.date,
+        ]),
+      ).toEqual([
+        [
+          "2026-11-08-liqueur-hibiscus",
+          "Liqueur d'hibiscus",
+          ["maceration"],
+          "2026-11-09",
+        ],
+      ]);
+    });
+
+    it("nomment toutes leurs phases ouvertes, aucune quand toutes sont closes, et se rangent la plus active d'abord", async () => {
+      const { depot } = await ouvrir({
+        ...DEPOT_EXEMPLE,
+        "realisations/2026-11-02-sirop.md": enCours(
+          `id: 2026-11-02-sirop\nnom: Sirop de novembre\nrecette: sirop-de-menthe\ndebut: 2026-11-02\nphases:\n  - { id: infusion, debut: 2026-11-02 }\n  - { id: repos, debut: 2026-11-03 }`,
+        ),
+        "realisations/2026-11-10-sans-recette.md": enCours(
+          `id: 2026-11-10-sans-recette\nnom: Essai\nrecette: introuvable\ndebut: 2026-11-10\nphases:\n  - { id: maceration, debut: 2026-11-10, fin: 2026-11-11 }`,
+        ),
+      });
+      const { realisations } = await depot.accueil(11);
+      expect(
+        realisations?.map((r) => [
+          r.realisation.id,
+          r.recette?.id,
+          r.phasesEnCours.map((p) => p.id),
+        ]),
+      ).toEqual([
+        ["2026-11-10-sans-recette", undefined, []],
+        ["2026-11-08-liqueur-hibiscus", "liqueur-hibiscus", ["maceration"]],
+        ["2026-11-02-sirop", "sirop-de-menthe", ["infusion", "repos"]],
+      ]);
+    });
+
+    it("bornent le journal à leur début, pris à la journée quand il porte une heure", async () => {
+      const seulementLaRealisation = Object.fromEntries(
+        Object.entries(DEPOT_EXEMPLE).filter(
+          ([chemin]) =>
+            !chemin.startsWith("cultures/2026") &&
+            !chemin.startsWith("elevages/") &&
+            chemin !== "realisations/2026-11-08-liqueur-hibiscus.md",
+        ),
+      );
+      const { depot, lecteur } = await ouvrir({
+        ...seulementLaRealisation,
+        "realisations/2026-11-09-a-l-heure.md": enCours(
+          `id: 2026-11-09-a-l-heure\nnom: À l'heure\nrecette: liqueur-hibiscus\ndebut: 2026-11-09T18:30\nphases: []`,
+        ),
+        "journal/2026/2026-11-09-a-l-heure.md": fiche(
+          "date: 2026-11-09\nrealisation: 2026-11-09-a-l-heure\nevenement: observation",
+        ),
+      });
+      const { realisations } = await depot.accueil(11);
+      expect(realisations?.[0]?.derniere?.date).toBe("2026-11-09");
+      expect(lecteur.lus).not.toContain(
+        "journal/2026/2026-11-01-liqueur-hibiscus-degustation.md",
+      );
+    });
+
+    it("n'existent pas pour un dépôt qui ne déclare pas les réalisations", async () => {
+      const { depot } = await ouvrir(DEPOT_DE_PLANTES);
+      expect((await depot.accueil(11)).realisations).toBeUndefined();
+    });
+  });
+
   // RG-referentiel-yml-decrit-le-depot : un dépôt qui ne tient que des plantes reste lisible.
   describe("dans un dépôt qui ne déclare pas les collections de l'animal", () => {
     it("donne des listes vides, et un accueil sans élevages", async () => {

@@ -2,15 +2,25 @@
 import { RouterLink } from "vue-router";
 import FichesInvalides from "../composants/FichesInvalides.vue";
 import MessageErreur from "../composants/MessageErreur.vue";
-import { libelle, libelleDate } from "../fiches/libelles";
+import type { RealisationALaUne } from "../fiches/depot-de-fiches";
+import { libelle, libelleDate, libelleDateOuInstant } from "../fiches/libelles";
 import { useChargement } from "./contexte";
 
-// RG-accueil-cultures-en-cours, RG-accueil-elevages-en-cours : ce qui vit en ce moment, d'abord ; les cultures, puis les élevages.
+// RG-accueil-cultures-en-cours, RG-accueil-elevages-en-cours, RG-accueil-realisations-en-cours : ce qui est en cours, d'abord ; les cultures, les élevages, puis les réalisations.
 const {
   valeur: accueil,
   erreur,
   enCours,
 } = useChargement((depot) => depot.accueil());
+
+// Une phase se nomme par le libellé que sa recette lui donne, comme sur la page d'une réalisation.
+const phasesEnCours = ({ recette, phasesEnCours }: RealisationALaUne) =>
+  phasesEnCours
+    .map(
+      ({ id }) =>
+        recette?.phases.find((p) => p.id === id)?.libelle ?? libelle(id),
+    )
+    .join(", ");
 </script>
 
 <template>
@@ -74,6 +84,48 @@ const {
             <span v-if="derniere" class="derniere"
               >{{ libelleDate(derniere.date) }} —
               {{ libelle(derniere.evenement) }}</span
+            >
+          </li>
+        </ul>
+      </template>
+      <template v-if="accueil.realisations">
+        <h2>Réalisations en cours</h2>
+        <p v-if="accueil.realisations.length === 0">
+          Aucune réalisation en cours.
+        </p>
+        <ul v-else class="cartes">
+          <li
+            v-for="aLaUne in accueil.realisations"
+            :key="aLaUne.realisation.id"
+            data-test="realisation-en-cours"
+          >
+            <RouterLink
+              :to="{
+                name: 'realisation',
+                params: { id: aLaUne.realisation.id },
+              }"
+              class="titre"
+              >{{ aLaUne.realisation.nom }}</RouterLink
+            >
+            <span class="lieu"
+              >d'après
+              <RouterLink
+                :to="{
+                  name: 'recette',
+                  params: { id: aLaUne.realisation.recette },
+                }"
+                >{{
+                  aLaUne.recette?.nom ?? aLaUne.realisation.recette
+                }}</RouterLink
+              >, depuis le
+              {{ libelleDateOuInstant(aLaUne.realisation.debut) }}</span
+            >
+            <span v-if="aLaUne.phasesEnCours.length > 0" class="phase"
+              >En cours : {{ phasesEnCours(aLaUne) }}</span
+            >
+            <span v-if="aLaUne.derniere" class="derniere"
+              >{{ libelleDate(aLaUne.derniere.date) }} —
+              {{ libelle(aLaUne.derniere.evenement) }}</span
             >
           </li>
         </ul>
