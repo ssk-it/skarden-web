@@ -8,12 +8,12 @@ minimumReleaseAge: 10080
 
 # Versions verrouillées par les demandes de Dependabot fusionnées avant que le délai ne devienne explicite (8 novembre 2026), et qui l'auraient enfreint : approuvées telles quelles, elles avaient de trois à sept jours et aucune n'est signalée. Lignes à retirer après le 12 novembre 2026.
 minimumReleaseAgeExclude:
-  - '@vitest/browser-playwright@5.1.0'
-  - '@vitest/browser@5.1.0'
-  - '@vitest/mocker@5.1.0'
-  - '@vitest/pretty-format@5.1.0'
-  - '@vitest/spy@5.1.0'
-  - '@vitest/ui@5.1.0'
-  - '@vitest/utils@5.1.0'
-  - 'globals@17.14.0'
-  - 'vitest@5.1.0'
+  - "@vitest/browser-playwright@5.1.0"
+  - "@vitest/browser@5.1.0"
+  - "@vitest/mocker@5.1.0"
+  - "@vitest/pretty-format@5.1.0"
+  - "@vitest/spy@5.1.0"
+  - "@vitest/ui@5.1.0"
+  - "@vitest/utils@5.1.0"
+  - "globals@17.14.0"
+  - "vitest@5.1.0"
