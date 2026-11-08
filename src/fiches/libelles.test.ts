@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { libelle } from "./libelles";
+import {
+  libelle,
+  libelleDelai,
+  libelleDuree,
+  libellePlageDeDurees,
+  libelleQuantite,
+} from "./libelles";
 
 // RG-page-d-un-animal : les valeurs fermées s'affichent en mots lisibles, jamais sous leur code.
 describe("libelle", () => {
@@ -34,5 +40,58 @@ describe("libelle", () => {
 
   it("garde le repli : les tirets deviennent des espaces", () => {
     expect(libelle("plein-soleil")).toBe("plein soleil");
+  });
+});
+
+describe("les libellés des transformations", () => {
+  const HEURE = 3600 * 1000;
+  const JOUR = 24 * HEURE;
+
+  it("écrit une quantité avec son unité, au pluriel s'il le faut", () => {
+    expect(libelleQuantite({ quantite: 29, unite: "g" })).toBe("29 g");
+    expect(libelleQuantite({ quantite: 0.5, unite: "l" })).toBe("0,5 l");
+    expect(libelleQuantite({ quantite: 1, unite: "piece" })).toBe("1 pièce");
+    expect(libelleQuantite({ quantite: 2, unite: "pincee" })).toBe("2 pincées");
+    expect(libelleQuantite({ quantite: 1, unite: "cas" })).toBe("1 c. à soupe");
+  });
+
+  it("écrit une durée calculée en heures, puis en jours", () => {
+    expect(libelleDuree(20 * 60 * 1000)).toBe("moins d'une heure");
+    expect(libelleDuree(15 * HEURE)).toBe("15 h");
+    expect(libelleDuree(JOUR + 6 * HEURE)).toBe("1 jour et 6 h");
+    expect(libelleDuree(4 * JOUR)).toBe("4 jours");
+    expect(libelleDuree(45 * JOUR)).toBe("45 jours");
+  });
+
+  it("écrit une plage de durées ISO en mots", () => {
+    expect(libellePlageDeDurees({ min: "P3D", max: "P5D" })).toBe(
+      "3 à 5 jours",
+    );
+    expect(libellePlageDeDurees({ min: "P2W", max: "P2W" })).toBe("2 semaines");
+    expect(libellePlageDeDurees({ min: "PT12H", max: "P1D" })).toBe(
+      "de 12 heures à 1 jour",
+    );
+    expect(libellePlageDeDurees({ min: "P1Y2M", max: "P1Y2M" })).toBe(
+      "1 an et 2 mois",
+    );
+  });
+
+  it("dit le délai d'une dégustation depuis la fin ou le début", () => {
+    expect(libelleDelai({ depuis: "fin", jours: 0 })).toBe("le jour de la fin");
+    expect(libelleDelai({ depuis: "fin", jours: 1 })).toBe(
+      "1 jour après la fin",
+    );
+    expect(libelleDelai({ depuis: "fin", jours: 61 })).toBe(
+      "61 jours après la fin, environ 2 mois",
+    );
+    expect(libelleDelai({ depuis: "debut", jours: 2 })).toBe(
+      "2 jours après le début, avant la fin",
+    );
+  });
+
+  it("rend en mots les valeurs des transformations", () => {
+    expect(libelle("seche")).toBe("séché");
+    expect(libelle("equilibre")).toBe("équilibre");
+    expect(libelle("degustation")).toBe("dégustation");
   });
 });

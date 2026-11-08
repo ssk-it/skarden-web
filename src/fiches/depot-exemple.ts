@@ -13,6 +13,10 @@ export const REFERENTIEL = `${REFERENTIEL_DE_PLANTES}  animaux: { dossier: anima
   elevages: { dossier: elevages }
   installations: { dossier: installations }
   procedures: { dossier: procedures }
+  recettes: { dossier: recettes }
+  realisations: { dossier: realisations }
+  produits: { dossier: produits }
+  contenants: { dossier: contenants }
 `;
 
 export const fiche = (champs: string, corps = "") =>
@@ -127,6 +131,129 @@ procedures: [preparation-substrat-terre]`,
   ),
 };
 
+// Les transformations, d'après la liqueur d'hibiscus de `sskorupski/skarden` et ses fixtures (cadrage 2026-007) : une recette, sa variante au gingembre, une réalisation finie et une en cours, qui emploient un produit, la menthe de la cuisine et un bocal.
+const FICHES_DES_TRANSFORMATIONS: Record<string, string> = {
+  "recettes/liqueur-hibiscus.md": fiche(
+    `id: liqueur-hibiscus
+nom: Liqueur d'hibiscus
+categorie: liqueur
+version: 2
+rendement: { quantite: 1, unite: l }
+ingredients:
+  - { ingredient: hibiscus, quantite: 40, unite: g, conservation: seche }
+  - { ingredient: alcool-neutre, quantite: 700, unite: ml, note: à 40 % vol }
+  - { ingredient: sucre, quantite: 200, unite: g }
+  - { ingredient: menthe, quantite: 5, unite: g, conservation: frais, optionnel: true }
+phases:
+  - id: maceration
+    libelle: Macération des fleurs dans l'alcool
+    duree_cible: { min: P3D, max: P5D }
+    temperature_c: { min: 18, max: 22 }
+    contenant_categorie: bocal
+    conditions: à l'abri de la lumière
+  - id: filtration
+    libelle: Filtration
+  - id: repos
+    libelle: Repos avant de servir
+    duree_cible: { min: P2W, max: P4W }
+sources: [Un carnet de famille]`,
+    "On filtre, puis on laisse reposer.",
+  ),
+  "recettes/liqueur-hibiscus-gingembre.md": fiche(
+    `id: liqueur-hibiscus-gingembre
+nom: Liqueur d'hibiscus au gingembre
+categorie: liqueur
+version: 1
+derive_de: liqueur-hibiscus
+ingredients:
+  - { ingredient: hibiscus, quantite: 40, unite: g, conservation: seche }
+  - { ingredient: gingembre, quantite: 20, unite: g, conservation: frais }
+phases:
+  - { id: maceration, libelle: Macération }`,
+  ),
+  "recettes/sirop-de-menthe.md": fiche(
+    `id: sirop-de-menthe
+nom: Sirop de menthe
+categorie: sirop
+version: 1
+ingredients:
+  - { ingredient: menthe, quantite: 100, unite: g, conservation: frais }
+phases:
+  - { id: infusion, libelle: Infusion }`,
+  ),
+  "realisations/2026-11-08-liqueur-hibiscus.md": fiche(
+    `id: 2026-11-08-liqueur-hibiscus
+nom: Liqueur d'hibiscus, novembre 2026
+recette: liqueur-hibiscus
+recette_version: 1
+statut: en-cours
+debut: 2026-11-08
+fin: null
+ingredients:
+  - { ingredient: hibiscus, quantite: 29, unite: g, conservation: seche, produit: hibiscus-karcade, lot: YE1156 }
+  - { ingredient: alcool-neutre, quantite: 0.5, unite: l }
+  - { ingredient: sucre-roux, quantite: 143, unite: g, ajoute: true }
+  - { ingredient: menthe, quantite: 5, unite: g, conservation: frais, culture: 2026-menthe-cuisine, recolte: 2026-11-07 }
+phases:
+  - { id: maceration, debut: 2026-11-08, contenant: bocal-parfait-1l, nombre: 1, temperature_c: { min: 19, max: 20, mesure: thermomètre de cuisine } }
+ecarts:
+  - Du sucre roux à la place du sucre de la recette.`,
+  ),
+  "realisations/2026-05-01-liqueur-hibiscus.md": fiche(
+    `id: 2026-05-01-liqueur-hibiscus
+nom: Liqueur d'hibiscus, mai 2026
+recette: liqueur-hibiscus
+recette_version: 2
+statut: terminee
+debut: 2026-05-01
+fin: 2026-05-31
+ingredients: []
+phases:
+  - { id: maceration, debut: 2026-05-01, fin: 2026-05-04, contenant: bocal-parfait-1l, nombre: 2 }
+resultat: { volume_obtenu: { quantite: 1.2, unite: l }, degre_estime: 25 }`,
+  ),
+  "produits/hibiscus-karcade.md": fiche(
+    `id: hibiscus-karcade
+nom: Hibiscus karcadé, sachet de 500 g
+ingredient: hibiscus
+conservation: seche
+marque: Espig
+fournisseur: Cepasco, Aubagne
+origine: Afrique
+conditionnement: { quantite: 500, unite: g }
+reference: 3102870021875`,
+    "Fleurs séchées, vendues sous vide.",
+  ),
+  "contenants/bocal-parfait-1l.md": fiche(
+    `id: bocal-parfait-1l
+nom: Bocal Le Parfait 1 l
+categorie: bocal
+contenance: { quantite: 1, unite: l }
+matiere: verre
+fermeture: joint et étrier
+nombre: 4`,
+  ),
+  "journal/2026/2026-11-09-liqueur-hibiscus-observation.md": fiche(
+    "date: 2026-11-09\nrealisation: 2026-11-08-liqueur-hibiscus\nevenement: observation",
+    "La couleur fonce déjà.",
+  ),
+  "journal/2026/2026-06-30-liqueur-hibiscus-degustation.md": fiche(
+    `date: 2026-06-30
+realisation: 2026-05-01-liqueur-hibiscus
+evenement: degustation
+avis:
+  - { participant: Camille, criteres: { couleur: 9, nez: 7 }, commentaire: Belle robe. }
+  - { participant: Sam, criteres: { couleur: 8, bouche: 6.5 } }`,
+  ),
+  "journal/2026/2026-11-01-liqueur-hibiscus-degustation.md": fiche(
+    `date: 2026-11-01
+realisation: 2026-05-01-liqueur-hibiscus
+evenement: degustation
+avis:
+  - { participant: Camille, criteres: { couleur: 9, nez: 8 } }`,
+  ),
+};
+
 // Un dépôt qui ne déclare pas les collections de l'animal (RG-referentiel-yml-decrit-le-depot).
 export const DEPOT_DE_PLANTES: Record<string, string> = {
   "referentiel.yml": REFERENTIEL_DE_PLANTES,
@@ -137,4 +264,5 @@ export const DEPOT_EXEMPLE: Record<string, string> = {
   "referentiel.yml": REFERENTIEL,
   ...FICHES_DE_LA_PLANTE,
   ...FICHES_DE_L_ANIMAL,
+  ...FICHES_DES_TRANSFORMATIONS,
 };
