@@ -118,6 +118,10 @@ function oublierJeton() {
     >
     <!-- RG-liste-des-emplacements : la collection est obligatoire, l'entrée ne dépend d'aucune déclaration. -->
     <RouterLink :to="{ name: 'emplacements' }">Emplacements</RouterLink>
+    <!-- RG-entree-des-recettes : pas d'entrée vide pour un dépôt sans transformations. -->
+    <RouterLink v-if="depot?.declare('recettes')" :to="{ name: 'recettes' }"
+      >Recettes</RouterLink
+    >
     <RouterLink to="/">Changer de dépôt</RouterLink>
   </nav>
 

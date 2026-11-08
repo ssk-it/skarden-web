@@ -13,6 +13,27 @@ import {
   type FicheLue,
   type Referentiel,
 } from "./format";
+import {
+  versAvis,
+  versContenant,
+  versProduit,
+  versRealisation,
+  versRecette,
+  type Avis,
+  type Realisation,
+  type Recette,
+} from "./transformations";
+import {
+  facultatif,
+  fourchette,
+  liste,
+  mois,
+  nombre,
+  objet,
+  objets,
+  texte,
+  type Fourchette,
+} from "./champs";
 
 // RG-champs-de-la-fiche-famille : une famille sans `regne` est végétale, comme toutes celles d'avant l'animal.
 export type Regne = "vegetal" | "animal";
@@ -88,10 +109,7 @@ export interface Soin {
   phases: string[];
 }
 
-export interface Fourchette {
-  min: number;
-  max: number;
-}
+export type { Fourchette };
 
 export interface Densite extends Fourchette {
   unite: "par-m2-sol" | "par-litre";
@@ -149,14 +167,17 @@ export interface Procedure {
   corps: string;
 }
 
-// RG-entree-du-journal : une entrée désigne exactement une culture ou un élevage.
+// RG-entree-du-journal : une entrée désigne exactement une culture, un élevage ou une réalisation.
 export interface EntreeDuJournal {
   chemin: string;
   date: string;
   culture?: string;
   elevage?: string;
+  realisation?: string;
   evenement: string;
   effectif?: number;
+  // RG-degustation-d-une-realisation : seule une dégustation porte des avis ; ailleurs, la liste est vide.
+  avis: Avis[];
   photos: string[];
   corps: string;
 }
@@ -247,6 +268,11 @@ export class DepotDeFiches {
   lireInstallation = (id: string) =>
     this.lireUne("installations", id, versInstallation);
   lireProcedure = (id: string) => this.lireUne("procedures", id, versProcedure);
+  lireRecette = (id: string) => this.lireUne("recettes", id, versRecette);
+  lireRealisation = (id: string) =>
+    this.lireUne("realisations", id, versRealisation);
+  lireProduit = (id: string) => this.lireUne("produits", id, versProduit);
+  lireContenant = (id: string) => this.lireUne("contenants", id, versContenant);
 
   listerPlantes = async () =>
     parNom(await this.lireToutes("plantes", versPlante));
@@ -258,6 +284,9 @@ export class DepotDeFiches {
   listerElevages = () => this.lireToutes("elevages", versElevage);
   listerInstallations = async () =>
     parNom(await this.lireToutes("installations", versInstallation));
+  listerRecettes = async () =>
+    parNom(await this.lireToutes("recettes", versRecette));
+  listerRealisations = () => this.lireToutes("realisations", versRealisation);
 
   // RG-referentiel-yml-decrit-le-depot : le site ne présente que les collections que le dépôt déclare.
   declare(collection: Collection): boolean {
@@ -324,6 +353,52 @@ export class DepotDeFiches {
         ),
       };
     return { regne: "vegetal", especes: await this.plantesDe(famille.id) };
+  }
+
+  // RG-page-d-une-recette : ses variantes, et ses réalisations la plus récente d'abord.
+  async variantesDe(recetteId: string): Promise<Liste<Recette>> {
+    return filtrer(
+      await this.listerRecettes(),
+      (r) => r.deriveDe === recetteId,
+    );
+  }
+
+  async realisationsDe(recetteId: string): Promise<Liste<Realisation>> {
+    return this.realisationsQui((r) => r.recette === recetteId);
+  }
+
+  // RG-realisations-d-une-fiche : ces listes se calculent à partir des réalisations, et ne s'écrivent sur aucune fiche.
+  realisationsAvecProduit = (produitId: string) =>
+    this.realisationsQui((r) =>
+      r.ingredients.some((i) => i.produit === produitId),
+    );
+
+  realisationsDans = (contenantId: string) =>
+    this.realisationsQui((r) =>
+      r.phases.some((p) => p.contenant === contenantId),
+    );
+
+  // La page d'une plante passe par ses cultures : une récolte désigne une culture, jamais une plante (cadrage 2026-007, décision 05).
+  realisationsAvecCultures = (cultureIds: string[]) =>
+    this.realisationsQui((r) =>
+      r.ingredients.some(
+        (i) => i.culture !== undefined && cultureIds.includes(i.culture),
+      ),
+    );
+
+  private async realisationsQui(
+    garder: (r: Realisation) => boolean,
+  ): Promise<Liste<Realisation>> {
+    return plusRecentesDAbord(filtrer(await this.listerRealisations(), garder));
+  }
+
+  // Le journal d'une réalisation court au-delà de sa fin : on la goûte des mois plus tard (RG-degustation-d-une-realisation).
+  async journalDeRealisation(
+    realisation: Realisation,
+  ): Promise<Liste<EntreeDuJournal>> {
+    const debut = realisation.debut.slice(0, 10);
+    const entrees = await this.lireJournal((date) => date >= debut);
+    return filtrer(entrees, (e) => e.realisation === realisation.id);
   }
 
   async journalDe(culture: Culture): Promise<Liste<EntreeDuJournal>> {
@@ -629,50 +704,6 @@ export function dernierEffectif(
   );
 }
 
-// Le dépôt de données vérifie ses fiches contre leurs schémas ; le site ne vérifie que ce dont il a besoin pour afficher, et refuse une fiche à qui cela manque.
-function texte(donnees: Record<string, unknown>, champ: string): string {
-  const valeur = donnees[champ];
-  if (typeof valeur === "string" && valeur !== "") return valeur;
-  // YAML 1.1 lirait une date comme un objet Date ; la bibliothèque `yaml` suit YAML 1.2 et rend une chaîne, mais rien ne coûte de l'accepter.
-  if (valeur instanceof Date) return valeur.toISOString().slice(0, 10);
-  throw new FicheInvalide(`champ « ${champ} » absent ou vide`);
-}
-
-const facultatif = (donnees: Record<string, unknown>, champ: string) =>
-  donnees[champ] === undefined || donnees[champ] === null
-    ? undefined
-    : texte(donnees, champ);
-
-const liste = (valeur: unknown): string[] =>
-  Array.isArray(valeur)
-    ? valeur.filter((v): v is string => typeof v === "string")
-    : [];
-
-const nombre = (valeur: unknown): number | undefined =>
-  typeof valeur === "number" && Number.isFinite(valeur) ? valeur : undefined;
-
-const objet = (valeur: unknown): Record<string, unknown> =>
-  typeof valeur === "object" && valeur !== null && !Array.isArray(valeur)
-    ? (valeur as Record<string, unknown>)
-    : {};
-
-const objets = (valeur: unknown): Record<string, unknown>[] =>
-  Array.isArray(valeur) ? valeur.map(objet) : [];
-
-const mois = (valeur: unknown): number[] =>
-  Array.isArray(valeur)
-    ? valeur.filter((m): m is number => typeof m === "number")
-    : [];
-
-function fourchette(valeur: unknown): Fourchette | undefined {
-  const { min, max } = objet(valeur);
-  const bas = nombre(min);
-  const haut = nombre(max);
-  return bas === undefined || haut === undefined
-    ? undefined
-    : { min: bas, max: haut };
-}
-
 function versFamille({ donnees, corps }: FicheLue): Famille {
   return {
     id: texte(donnees, "id"),
@@ -872,26 +903,34 @@ function versCulture({ donnees, corps }: FicheLue): Culture {
   };
 }
 
-// RG-entree-du-journal : une entrée désigne exactement un lot, une culture ou un élevage.
+// RG-entree-du-journal : une entrée désigne exactement une culture, un élevage ou une réalisation.
 function versEntree(
   { donnees, corps }: FicheLue,
   chemin: string,
 ): EntreeDuJournal {
   const culture = facultatif(donnees, "culture");
   const elevage = facultatif(donnees, "elevage");
-  if (culture === undefined && elevage === undefined)
-    throw new FicheInvalide("champ « culture » ou « elevage » absent ou vide");
-  if (culture !== undefined && elevage !== undefined)
+  const realisation = facultatif(donnees, "realisation");
+  const designes = [culture, elevage, realisation].filter(
+    (d) => d !== undefined,
+  ).length;
+  if (designes === 0)
     throw new FicheInvalide(
-      "une entrée désigne une culture ou un élevage, pas les deux",
+      "champ « culture », « elevage » ou « realisation » absent ou vide",
+    );
+  if (designes > 1)
+    throw new FicheInvalide(
+      "une entrée désigne une seule fiche : une culture, un élevage ou une réalisation",
     );
   return {
     chemin,
     date: texte(donnees, "date"),
     culture,
     elevage,
+    realisation,
     evenement: texte(donnees, "evenement"),
     effectif: elevage === undefined ? undefined : nombre(donnees.effectif),
+    avis: realisation === undefined ? [] : versAvis(donnees.avis),
     photos: liste(donnees.photos),
     corps,
   };

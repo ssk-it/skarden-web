@@ -306,6 +306,8 @@ button {
 
 .tableau th,
 .tableau td {
+  /* Un mot long ne pousse pas le tableau hors d'un téléphone : il se coupe (WCAG 1.4.10). */
+  overflow-wrap: anywhere;
   text-align: left;
   padding: 0.2rem 0.5rem 0.2rem 0;
   border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
@@ -314,4 +316,24 @@ button {
 
 .tableau tbody th {
   font-weight: normal;
+}
+
+/* RG-page-d-une-realisation : la frise des phases, une phase après l'autre, numérotées dans l'ordre où on les exécute. */
+.phases {
+  padding-left: 1.5rem;
+}
+
+.phases > li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.phases .titre,
+.degustation h4 {
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+
+.degustation {
+  padding: 0.5rem 0;
 }

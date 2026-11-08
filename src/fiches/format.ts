@@ -3,7 +3,7 @@
 import { parse } from "yaml";
 import { DepotIllisible } from "../depot/lecteur";
 
-// Les collections de la plante sont obligatoires ; celles de l'animal, facultatives : un dépôt qui ne tient que des plantes reste lisible (cadrage 2026-004, décision 04-collections-facultatives).
+// Les collections de la plante sont obligatoires ; celles de l'animal et des transformations, facultatives : un dépôt qui ne tient que des plantes reste lisible (cadrage 2026-004, décision 04-collections-facultatives ; cadrage 2026-007).
 export const COLLECTIONS_OBLIGATOIRES = [
   "familles",
   "plantes",
@@ -16,6 +16,11 @@ export const COLLECTIONS_FACULTATIVES = [
   "elevages",
   "installations",
   "procedures",
+  // Les quatre se déclarent ensemble ; le site lit pourtant chacune pour elle-même, et ne présente rien de celle qui manque.
+  "recettes",
+  "realisations",
+  "produits",
+  "contenants",
 ] as const;
 export type CollectionObligatoire = (typeof COLLECTIONS_OBLIGATOIRES)[number];
 export type CollectionFacultative = (typeof COLLECTIONS_FACULTATIVES)[number];

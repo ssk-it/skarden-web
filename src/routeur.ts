@@ -18,6 +18,11 @@ import InstallationPage from "./pages/InstallationPage.vue";
 import PlantePage from "./pages/PlantePage.vue";
 import PlantesPage from "./pages/PlantesPage.vue";
 import ProcedurePage from "./pages/ProcedurePage.vue";
+import ProduitPage from "./pages/ProduitPage.vue";
+import RealisationPage from "./pages/RealisationPage.vue";
+import RecettePage from "./pages/RecettePage.vue";
+import RecettesPage from "./pages/RecettesPage.vue";
+import ContenantPage from "./pages/ContenantPage.vue";
 import SaisieDuDepotPage from "./pages/SaisieDuDepotPage.vue";
 
 export function creerRouteur(
@@ -58,6 +63,19 @@ export function creerRouteur(
             path: "procedures/:id",
             name: "procedure",
             component: ProcedurePage,
+          },
+          { path: "recettes", name: "recettes", component: RecettesPage },
+          { path: "recettes/:id", name: "recette", component: RecettePage },
+          {
+            path: "realisations/:id",
+            name: "realisation",
+            component: RealisationPage,
+          },
+          { path: "produits/:id", name: "produit", component: ProduitPage },
+          {
+            path: "contenants/:id",
+            name: "contenant",
+            component: ContenantPage,
           },
         ],
       },

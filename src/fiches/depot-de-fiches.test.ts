@@ -564,3 +564,104 @@ describe("capacite", () => {
     ).toEqual({ calculable: false, raison: "sans-volume" });
   });
 });
+
+// Cadrage 2026-007 : les transformations.
+describe("les transformations", () => {
+  it("lit une recette, une réalisation, un produit et un contenant", async () => {
+    const { depot } = await ouvrir();
+    expect(await depot.lireRecette("liqueur-hibiscus")).toMatchObject({
+      nom: "Liqueur d'hibiscus",
+      version: 2,
+      rendement: { quantite: 1, unite: "l" },
+      sources: ["Un carnet de famille"],
+    });
+    expect(
+      await depot.lireRealisation("2026-11-08-liqueur-hibiscus"),
+    ).toMatchObject({ recette: "liqueur-hibiscus", statut: "en-cours" });
+    expect(await depot.lireProduit("hibiscus-karcade")).toMatchObject({
+      ingredient: "hibiscus",
+      reference: "3102870021875",
+    });
+    expect(await depot.lireContenant("bocal-parfait-1l")).toMatchObject({
+      contenance: { quantite: 1, unite: "l" },
+      matiere: "verre",
+    });
+  });
+
+  it("donne les variantes et les réalisations d'une recette, la plus récente d'abord", async () => {
+    const { depot } = await ouvrir();
+    expect(
+      (await depot.variantesDe("liqueur-hibiscus")).fiches.map((r) => r.id),
+    ).toEqual(["liqueur-hibiscus-gingembre"]);
+    expect(
+      (await depot.realisationsDe("liqueur-hibiscus")).fiches.map((r) => r.id),
+    ).toEqual(["2026-11-08-liqueur-hibiscus", "2026-05-01-liqueur-hibiscus"]);
+  });
+
+  // RG-realisations-d-une-fiche
+  it("retrouve les réalisations qui ont employé un produit, un contenant, une culture ou une plante", async () => {
+    const { depot } = await ouvrir();
+    const ids = (l: { fiches: { id: string }[] }) => l.fiches.map((r) => r.id);
+    expect(
+      ids(await depot.realisationsAvecProduit("hibiscus-karcade")),
+    ).toEqual(["2026-11-08-liqueur-hibiscus"]);
+    expect(ids(await depot.realisationsDans("bocal-parfait-1l"))).toEqual([
+      "2026-11-08-liqueur-hibiscus",
+      "2026-05-01-liqueur-hibiscus",
+    ]);
+    expect(
+      ids(await depot.realisationsAvecCultures(["2026-menthe-cuisine"])),
+    ).toEqual(["2026-11-08-liqueur-hibiscus"]);
+    expect(
+      ids(await depot.realisationsAvecCultures(["2025-basilic-cuisine"])),
+    ).toEqual([]);
+  });
+
+  // RG-entree-du-journal : une entrée désigne exactement une culture, un élevage ou une réalisation.
+  it("donne le journal d'une réalisation, dégustations faites après sa fin comprises", async () => {
+    const { depot } = await ouvrir();
+    const finie = await depot.lireRealisation("2026-05-01-liqueur-hibiscus");
+    const journal = await depot.journalDeRealisation(finie);
+    expect(journal.invalides).toEqual([]);
+    expect(journal.fiches.map((e) => e.date)).toEqual([
+      "2026-11-01",
+      "2026-06-30",
+    ]);
+    expect(journal.fiches[1]?.avis).toEqual([
+      {
+        participant: "Camille",
+        criteres: { couleur: 9, nez: 7 },
+        commentaire: "Belle robe.",
+      },
+      { participant: "Sam", criteres: { couleur: 8, bouche: 6.5 } },
+    ]);
+  });
+
+  it("ne rattache aux cultures aucune entrée d'une réalisation", async () => {
+    const { depot } = await ouvrir();
+    const { invalides } = await depot.accueil(11);
+    expect(invalides).toEqual([]);
+  });
+
+  it("dit invalide une entrée qui désigne à la fois une culture et une réalisation", async () => {
+    const { depot } = await ouvrir({
+      ...DEPOT_EXEMPLE,
+      "journal/2026/2026-11-10-double.md": fiche(
+        "date: 2026-11-10\nculture: 2026-basilic-cuisine\nrealisation: 2026-11-08-liqueur-hibiscus\nevenement: observation",
+      ),
+    });
+    const { invalides } = await depot.accueil(11);
+    expect(invalides.map((i) => i.chemin)).toEqual([
+      "journal/2026/2026-11-10-double.md",
+    ]);
+  });
+
+  it("ne présente aucune transformation d'un dépôt qui ne les déclare pas", async () => {
+    const { depot } = await ouvrir(DEPOT_DE_PLANTES);
+    expect(depot.declare("recettes")).toBe(false);
+    expect((await depot.listerRecettes()).fiches).toEqual([]);
+    expect(
+      (await depot.realisationsAvecCultures(["2026-menthe-cuisine"])).fiches,
+    ).toEqual([]);
+  });
+});

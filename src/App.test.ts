@@ -645,3 +645,216 @@ describe("le jeton d'écriture", () => {
     ).toBe(false);
   });
 });
+
+// Cadrage 2026-007 : le site présente les transformations.
+describe("les transformations", () => {
+  const D = "/sskorupski/skarden";
+  const EN_COURS = `${D}/realisations/2026-11-08-liqueur-hibiscus`;
+  const FINIE = `${D}/realisations/2026-05-01-liqueur-hibiscus`;
+  const section = (
+    page: { find: (s: string) => { text: () => string } },
+    nom: string,
+  ) => page.find(`[data-test=${nom}]`).text();
+
+  // Une phase en cours court jusqu'à maintenant : l'horloge est fixée au 10 novembre 2026, midi à Paris.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-10T11:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  // RG-entree-des-recettes
+  it("se trouvent sous l'entrée Recettes, qui n'apparaît que si le dépôt déclare la collection", async () => {
+    const { page } = await visiter(D);
+    const entrees = page.findAll("nav a").map((a) => a.text());
+    expect(entrees).toContain("Recettes");
+    expect(entrees.indexOf("Recettes")).toBeGreaterThan(
+      entrees.indexOf("Emplacements"),
+    );
+    const plantes = (await visiter(D, undefined, DEPOT_DE_PLANTES)).page;
+    expect(plantes.find("nav").text()).not.toContain("Recettes");
+  });
+
+  it("se listent par catégorie puis par nom, chaque variante sous sa source", async () => {
+    const { page } = await visiter(`${D}/recettes`);
+    expect(page.find("h2").text()).toBe("Recettes");
+    expect(page.findAll("h3").map((h) => h.text())).toEqual([
+      "Liqueur",
+      "Sirop",
+    ]);
+    const hibiscus = page.find("[data-test=recette]");
+    expect(hibiscus.find("a").text()).toBe("Liqueur d'hibiscus");
+    expect(
+      hibiscus
+        .find(
+          `[data-test=variantes] a[href='${D}/recettes/liqueur-hibiscus-gingembre']`,
+        )
+        .exists(),
+    ).toBe(true);
+  });
+
+  // RG-page-d-une-recette
+  it("montrent la page d'une recette : ses champs, ses ingrédients, ses phases, ses variantes et ses réalisations", async () => {
+    const { page } = await visiter(`${D}/recettes/liqueur-hibiscus`);
+    expect(page.find("h2").text()).toBe("Liqueur d'hibiscus");
+    const champs = section(page, "champs");
+    expect(champs).toContain("liqueur");
+    expect(champs).toContain("2");
+    expect(champs).toContain("1 l");
+    expect(
+      page.find(`a[href='${D}/recettes/liqueur-hibiscus-gingembre']`).text(),
+    ).toBe("Liqueur d'hibiscus au gingembre");
+    const ingredients = section(page, "ingredients");
+    expect(ingredients).toContain("40 g");
+    expect(ingredients).toContain("hibiscus");
+    expect(ingredients).toContain("séché");
+    expect(ingredients).toContain("facultatif");
+    const phases = page.findAll("[data-test=phase]").map((p) => p.text());
+    expect(phases[0]).toContain("Macération des fleurs dans l'alcool");
+    expect(phases[0]).toContain("3 à 5 jours");
+    expect(phases[0]).toContain("18 à 22 °C");
+    expect(phases[0]).toContain("bocal");
+    expect(phases[2]).toContain("2 à 4 semaines");
+    expect(
+      page.findAll("[data-test=realisation]").map((r) => r.text()),
+    ).toEqual([
+      expect.stringContaining("en cours"),
+      expect.stringContaining("terminée"),
+    ]);
+    expect(page.text()).toContain("Un carnet de famille");
+    expect(page.text()).toContain("On filtre, puis on laisse reposer.");
+  });
+
+  it("disent de quelle recette dérive une variante", async () => {
+    const { page } = await visiter(`${D}/recettes/liqueur-hibiscus-gingembre`);
+    expect(section(page, "champs")).toContain("Liqueur d'hibiscus");
+    expect(page.find(`a[href='${D}/recettes/liqueur-hibiscus']`).exists()).toBe(
+      true,
+    );
+  });
+
+  // RG-page-d-une-realisation
+  it("montrent une réalisation en cours : sa recette, sa durée, la provenance de ses ingrédients et la frise de ses phases", async () => {
+    const { page } = await visiter(EN_COURS);
+    expect(page.find("h2").text()).toBe("Liqueur d'hibiscus, novembre 2026");
+    const champs = section(page, "champs");
+    expect(champs).toContain("Liqueur d'hibiscus");
+    expect(champs).toContain("version 1");
+    expect(champs).toContain("en cours");
+    expect(champs).toContain("depuis le 8 novembre 2026");
+    expect(champs).toContain("2 jours et 12 h");
+    const ingredients = section(page, "ingredients");
+    expect(ingredients).toContain("29 g");
+    expect(ingredients).toContain("lot YE1156");
+    expect(page.find(`a[href='${D}/produits/hibiscus-karcade']`).text()).toBe(
+      "Hibiscus karcadé, sachet de 500 g",
+    );
+    expect(
+      page.find(`a[href='${D}/cultures/2026-menthe-cuisine']`).exists(),
+    ).toBe(true);
+    expect(ingredients).toContain("cueillie le 7 novembre 2026");
+    const frise = page.findAll("[data-test=phase]").map((p) => p.text());
+    expect(frise[0]).toContain("Macération des fleurs dans l'alcool");
+    expect(frise[0]).toContain("en cours");
+    expect(frise[0]).toContain("2 jours et 12 h");
+    expect(frise[0]).toContain("19 à 20 °C");
+    expect(frise[0]).toContain("thermomètre de cuisine");
+    expect(
+      page
+        .find(`[data-test=frise] a[href='${D}/contenants/bocal-parfait-1l']`)
+        .text(),
+    ).toBe("Bocal Le Parfait 1 l");
+    expect(page.text()).toContain("Du sucre roux à la place du sucre");
+    expect(section(page, "journal")).toContain("La couleur fonce déjà.");
+  });
+
+  // RG-comparaison-a-la-recette
+  it("comparent une réalisation à la version courante de sa recette", async () => {
+    const { page } = await visiter(EN_COURS);
+    const comparaison = section(page, "comparaison");
+    expect(comparaison).toContain(
+      "La recette est en version 2, et cette réalisation a suivi la version 1",
+    );
+    const ligne = (ingredient: string) =>
+      page
+        .findAll("[data-test=comparaison-ingredient]")
+        .find((l) => l.find("th").text() === ingredient)
+        ?.text();
+    expect(ligne("hibiscus")).toContain("−11 g");
+    expect(ligne("hibiscus")).toContain("−27,5 %");
+    expect(ligne("alcool neutre")).toContain("−200 ml");
+    expect(ligne("sucre")).toContain("manquant");
+    expect(ligne("sucre roux")).toContain("ajouté");
+    const phases = page
+      .findAll("[data-test=comparaison-phase]")
+      .map((l) => l.text());
+    expect(phases[0]).toContain("en cours");
+    expect(phases[1]).toContain("à venir");
+  });
+
+  // RG-degustation-d-une-realisation
+  it("montrent les dégustations d'une réalisation : délai, notes de chacun, moyennes et évolution", async () => {
+    const { page } = await visiter(FINIE);
+    const degustations = page.findAll("[data-test=degustation]");
+    expect(degustations).toHaveLength(2);
+    const premiere = degustations[0];
+    expect(premiere?.text()).toContain("30 jours après la fin, environ 1 mois");
+    const couleur = premiere
+      ?.findAll("tbody tr")
+      .find((l) => l.find("th").text() === "couleur");
+    expect(couleur?.findAll("td").map((c) => c.text())).toEqual([
+      "9",
+      "8",
+      "8,5",
+    ]);
+    expect(premiere?.text()).toContain("Belle robe.");
+    const bouche = premiere
+      ?.findAll("tbody tr")
+      .find((l) => l.find("th").text() === "bouche");
+    expect(bouche?.findAll("td").map((c) => c.text())).toEqual([
+      "non noté",
+      "6,5",
+      "6,5",
+    ]);
+    const evolution = page
+      .findAll("[data-test=evolution] tbody tr")
+      .find((l) => l.find("th").text() === "couleur");
+    expect(evolution?.findAll("td").map((c) => c.text())).toEqual(["8,5", "9"]);
+    expect(section(page, "champs")).toContain("31 jours");
+    expect(section(page, "resultat")).toContain("1,2 l");
+    expect(section(page, "resultat")).toContain("25 % vol");
+  });
+
+  // RG-realisations-d-une-fiche
+  it("se retrouvent depuis un produit, un contenant, une culture et une plante", async () => {
+    const produit = (await visiter(`${D}/produits/hibiscus-karcade`)).page;
+    expect(produit.find("h2").text()).toBe("Hibiscus karcadé, sachet de 500 g");
+    expect(section(produit, "champs")).toContain("Espig");
+    expect(section(produit, "champs")).toContain("500 g");
+    expect(produit.findAll("[data-test=realisation]")).toHaveLength(1);
+
+    const contenant = (await visiter(`${D}/contenants/bocal-parfait-1l`)).page;
+    expect(section(contenant, "champs")).toContain("verre");
+    expect(section(contenant, "champs")).toContain("1 l");
+    expect(contenant.findAll("[data-test=realisation]")).toHaveLength(2);
+
+    const culture = (await visiter(`${D}/cultures/2026-menthe-cuisine`)).page;
+    expect(
+      culture.findAll("[data-test=realisation]").map((r) => r.text()),
+    ).toEqual([expect.stringContaining("Liqueur d'hibiscus, novembre 2026")]);
+
+    const plante = (await visiter(`${D}/plantes/menthe`)).page;
+    expect(plante.findAll("[data-test=realisation]")).toHaveLength(1);
+    const basilic = (await visiter(`${D}/plantes/basilic`)).page;
+    expect(basilic.text()).toContain("Aucune réalisation.");
+  });
+
+  it("n'apparaissent pas sur les fiches d'un dépôt qui ne les déclare pas", async () => {
+    const { page } = await visiter(
+      `${D}/cultures/2026-menthe-cuisine`,
+      undefined,
+      DEPOT_DE_PLANTES,
+    );
+    expect(page.text()).not.toContain("Réalisations");
+  });
+});
