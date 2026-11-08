@@ -30,8 +30,7 @@ defineProps<{
     <thead>
       <tr>
         <th scope="col">Ingrédient</th>
-        <th scope="col">Prévu</th>
-        <th scope="col">Employé</th>
+        <th scope="col">Prévu, puis employé</th>
         <th scope="col">Écart</th>
       </tr>
     </thead>
@@ -42,6 +41,7 @@ defineProps<{
         data-test="comparaison-ingredient"
       >
         <th scope="row">{{ libelle(ligne.ingredient) }}</th>
+        <!-- Prévu et employé partagent une colonne : quatre colonnes ne tiendraient pas sur un téléphone (WCAG 1.4.10). -->
         <td>
           <template v-if="'prevu' in ligne"
             >{{ libelleQuantite(ligne.prevu)
@@ -49,16 +49,15 @@ defineProps<{
               >, {{ libelle(ligne.prevu.conservation) }}</template
             ></template
           >
-          <template v-else>—</template>
-        </td>
-        <td>
+          <template v-else>non prévu</template>
+          <br />
           <template v-if="'employe' in ligne"
             >{{ libelleQuantite(ligne.employe)
             }}<template v-if="ligne.employe.conservation"
               >, {{ libelle(ligne.employe.conservation) }}</template
             ></template
           >
-          <template v-else>—</template>
+          <template v-else>non employé</template>
         </td>
         <td>
           <template v-if="ligne.etat === 'employe'">

@@ -306,6 +306,8 @@ button {
 
 .tableau th,
 .tableau td {
+  /* Un mot long ne pousse pas le tableau hors d'un téléphone : il se coupe (WCAG 1.4.10). */
+  overflow-wrap: anywhere;
   text-align: left;
   padding: 0.2rem 0.5rem 0.2rem 0;
   border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
