@@ -1,4 +1,4 @@
-// Ce que le site retient du visiteur, sur son appareil : le dernier dépôt lu (RG-depot-designe-par-le-visiteur) et le jeton d'un dépôt privé (RG-jeton-d-un-depot-prive) ; le temps de l'onglet seulement, le jeton d'écriture d'un dépôt. Rien d'autre, et jamais dans une adresse.
+// Ce que le site retient du visiteur, sur son appareil : le dernier dépôt lu (RG-depot-designe-par-le-visiteur) et le jeton d'un dépôt privé (RG-jeton-d-un-depot-prive), la disposition choisie pour une réalisation (RG-realisation-face-a-sa-recette) ; le temps de l'onglet seulement, le jeton d'écriture d'un dépôt. Rien d'autre, et jamais dans une adresse.
 
 import type { DepotDesigne } from "./lecteur";
 
@@ -35,6 +35,7 @@ export function lireDepotSaisi(saisie: string): DepotDesigne | undefined {
 
 const CLE_JETON = "skarden.jeton";
 const CLE_DEPOT = "skarden.dernier-depot";
+const CLE_REALISATION_SEULE = "skarden.realisation-seule";
 
 // Le stockage peut être refusé (navigation privée, données de site bloquées) : le site fonctionne alors sans mémoire.
 function lire(cle: string, stockage = () => localStorage): string | undefined {
@@ -68,6 +69,9 @@ export const memoireDuVisiteur = {
   },
   retenirDepot: ({ proprietaire, depot }: DepotDesigne) =>
     ecrire(CLE_DEPOT, `${proprietaire}/${depot}`),
+  realisationSeule: () => lire(CLE_REALISATION_SEULE) === "oui",
+  retenirRealisationSeule: (seule: boolean) =>
+    ecrire(CLE_REALISATION_SEULE, seule ? "oui" : undefined),
 };
 
 // RG-jeton-d-un-depot-prive : le jeton d'écriture ne survit pas à l'onglet. Il est rangé sous son dépôt : il ne vaut pour aucun autre.

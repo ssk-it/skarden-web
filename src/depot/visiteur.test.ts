@@ -72,6 +72,40 @@ describe("memoireDuVisiteur", () => {
   });
 });
 
+// RG-realisation-face-a-sa-recette : le navigateur retient la bascule « Réalisation seule » d'une visite à l'autre.
+describe("la disposition d'une réalisation", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("vaut deux colonnes tant qu'on n'a rien choisi", () => {
+    expect(memoireDuVisiteur.realisationSeule()).toBe(false);
+  });
+
+  it("retient la réalisation seule, puis le retour aux deux colonnes", () => {
+    memoireDuVisiteur.retenirRealisationSeule(true);
+    expect(memoireDuVisiteur.realisationSeule()).toBe(true);
+    memoireDuVisiteur.retenirRealisationSeule(false);
+    expect(memoireDuVisiteur.realisationSeule()).toBe(false);
+  });
+
+  it("se passe du stockage quand le navigateur le refuse", () => {
+    const { getItem, setItem } = Storage.prototype;
+    Storage.prototype.getItem = () => {
+      throw new Error("SecurityError");
+    };
+    Storage.prototype.setItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+    try {
+      expect(() =>
+        memoireDuVisiteur.retenirRealisationSeule(true),
+      ).not.toThrow();
+      expect(memoireDuVisiteur.realisationSeule()).toBe(false);
+    } finally {
+      Object.assign(Storage.prototype, { getItem, setItem });
+    }
+  });
+});
+
 // RG-jeton-d-un-depot-prive : le jeton d'écriture ne vaut que pour un dépôt et le temps de l'onglet, jamais sur l'appareil.
 describe("la mémoire de l'onglet", () => {
   const SKARDEN = { proprietaire: "sskorupski", depot: "skarden" };

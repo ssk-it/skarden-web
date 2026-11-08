@@ -337,3 +337,55 @@ button {
 .degustation {
   padding: 0.5rem 0;
 }
+
+/* RG-realisation-face-a-sa-recette : sur une fenêtre large, la page s'élargit pour deux colonnes lisibles ; chaque ligne est sa propre grille, si bien qu'un ingrédient et son équivalent commencent à la même hauteur. */
+body .site:has(.face-a-face) {
+  max-width: 80rem;
+}
+
+/* L'état de la bascule se voit autant qu'il s'annonce (aria-pressed) : enfoncée, elle se cerne et passe en gras. */
+.bascule[aria-pressed="true"] {
+  font-weight: 600;
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+
+.lignes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.face-a-face .ligne {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 2rem;
+  overflow-wrap: anywhere;
+}
+
+.lignes > .ligne {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.face-a-face .constat {
+  margin: 0.25rem 0 0;
+}
+
+.face-a-face .phases .titre,
+.face-a-face .lignes .titre {
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+
+.autres-realisations {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.autres-realisations select {
+  font: inherit;
+  max-width: 100%;
+}

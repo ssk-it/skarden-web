@@ -1,84 +1,33 @@
 <script setup lang="ts">
-import { RouterLink } from "vue-router";
+import { RouterLink, useRouter } from "vue-router";
+import ChampsDeRealisation from "../composants/ChampsDeRealisation.vue";
 import ComparaisonALaRecette from "../composants/ComparaisonALaRecette.vue";
 import DegustationsDeRealisation from "../composants/DegustationsDeRealisation.vue";
-import FichesInvalides from "../composants/FichesInvalides.vue";
+import EcartsEtResultat from "../composants/EcartsEtResultat.vue";
+import IngredientEmploye from "../composants/IngredientEmploye.vue";
+import JournalDeRealisation from "../composants/JournalDeRealisation.vue";
 import MessageErreur from "../composants/MessageErreur.vue";
+import PhaseRealisee from "../composants/PhaseRealisee.vue";
 import PhotosDeFiche from "../composants/PhotosDeFiche.vue";
+import RealisationFaceASaRecette from "../composants/RealisationFaceASaRecette.vue";
 import TexteDeFiche from "../composants/TexteDeFiche.vue";
-import {
-  libelle,
-  libelleDate,
-  libelleDateOuInstant,
-  libelleDuree,
-  libelleNombre,
-  libelleQuantite,
-  libelleTemperature,
-} from "../fiches/libelles";
-import {
-  comparer,
-  degustationsDe,
-  dureeDePhase,
-  dureeTotale,
-  evolutionDesCriteres,
-  maintenantAParis,
-  type Contenant,
-  type Produit,
-} from "../fiches/transformations";
-import type { DepotDeFiches } from "../fiches/depot-de-fiches";
+import { useDisposition } from "../composants/disposition";
+import { libelle } from "../fiches/libelles";
 import { useChargement, useIdentifiant } from "./contexte";
+import { lireLaRealisation } from "./lecture-de-realisation";
 
-// Les fiches désignées, lues une fois chacune ; une fiche illisible laisse son identifiant à l'écran.
-async function lireChacune<T>(
-  ids: (string | undefined)[],
-  lire: (id: string) => Promise<T>,
-): Promise<Map<string, T>> {
-  const uniques = [...new Set(ids.filter((id) => id !== undefined))];
-  const lues = await Promise.all(
-    uniques.map((id) => lire(id).catch(() => undefined)),
-  );
-  return new Map(
-    uniques.flatMap((id, i) => {
-      const lue = lues[i];
-      return lue === undefined ? [] : [[id, lue] as [string, T]];
-    }),
-  );
-}
-
-// RG-page-d-une-realisation : on la relit comme elle s'est déroulée, avec ses dates, et on y voit tout de suite ce qui l'a fait réussir ou rater. La comparaison se fait avec la version courante de la recette, sans rien lire de plus que le commit (cadrage 2026-007, décision 06).
+// RG-page-d-une-realisation : on la relit comme elle s'est déroulée, avec ses dates, et on y voit tout de suite ce qui l'a fait réussir ou rater. La comparaison se fait avec la version courante de la recette, sans rien lire de plus que le commit (cadrage 2026-007, décision 06). Sur une fenêtre large, la recette se place en face (RG-realisation-face-a-sa-recette).
 const id = useIdentifiant();
 const { valeur, erreur, enCours } = useChargement(
-  async (depot: DepotDeFiches) => {
-    const realisation = await depot.lireRealisation(id.value);
-    const [recette, produits, contenants, journal] = await Promise.all([
-      depot.lireRecette(realisation.recette).catch(() => undefined),
-      lireChacune<Produit>(
-        realisation.ingredients.map((i) => i.produit),
-        depot.lireProduit,
-      ),
-      lireChacune<Contenant>(
-        realisation.phases.map((p) => p.contenant),
-        depot.lireContenant,
-      ),
-      depot.journalDeRealisation(realisation),
-    ]);
-    const maintenant = maintenantAParis();
-    const degustations = degustationsDe(realisation, journal.fiches);
-    return {
-      realisation,
-      recette,
-      produits,
-      contenants,
-      journal,
-      maintenant,
-      duree: dureeTotale(realisation, maintenant),
-      comparaison: recette && comparer(realisation, recette, maintenant),
-      degustations,
-      evolution: evolutionDesCriteres(degustations),
-    };
-  },
+  (depot) => lireLaRealisation(depot, id.value),
   () => id.value,
 );
+const { large, seule, faceAFace, basculer } = useDisposition();
+
+// Choisir une autre réalisation de la recette change l'adresse, mais la page reste à l'écran le temps de la lire : le focus ne se perd pas.
+const routeur = useRouter();
+const choisir = (autre: string) =>
+  routeur.push({ name: "realisation", params: { id: autre } });
 
 const libelleDePhase = (phaseId: string) =>
   valeur.value?.recette?.phases.find((p) => p.id === phaseId)?.libelle ??
@@ -87,229 +36,115 @@ const libelleDePhase = (phaseId: string) =>
 
 <template>
   <main>
-    <p v-if="enCours" class="chargement">Lecture de la fiche…</p>
+    <p v-if="enCours && !valeur" class="chargement">Lecture de la fiche…</p>
     <MessageErreur v-else-if="erreur" :erreur="erreur" />
-    <article v-else-if="valeur">
+    <article v-else-if="valeur" :aria-busy="enCours">
       <h2>{{ valeur.realisation.nom }}</h2>
-      <dl class="champs" data-test="champs">
-        <dt>Recette</dt>
-        <dd>
-          <RouterLink
-            :to="{
-              name: 'recette',
-              params: { id: valeur.realisation.recette },
-            }"
-            >{{ valeur.recette?.nom ?? valeur.realisation.recette }}</RouterLink
-          >, version {{ valeur.realisation.recetteVersion }} suivie
-        </dd>
-        <dt>Statut</dt>
-        <dd>{{ libelle(valeur.realisation.statut) }}</dd>
-        <dt>Période</dt>
-        <dd>
-          depuis le {{ libelleDateOuInstant(valeur.realisation.debut)
-          }}<template v-if="valeur.realisation.fin"
-            >, jusqu'au
-            {{ libelleDateOuInstant(valeur.realisation.fin) }}</template
-          >
-        </dd>
-        <dt>Durée</dt>
-        <dd>
-          {{ libelleDuree(valeur.duree.ms)
-          }}<template v-if="valeur.duree.enCours">, en cours</template>
-        </dd>
-      </dl>
+      <button
+        v-if="large && valeur.recette"
+        type="button"
+        class="bascule"
+        data-test="bascule"
+        :aria-pressed="seule"
+        @click="basculer"
+      >
+        Réalisation seule
+      </button>
 
-      <h3>Ingrédients</h3>
-      <p v-if="valeur.realisation.ingredients.length === 0">
-        Aucun ingrédient noté.
-      </p>
-      <ul v-else class="liste" data-test="ingredients">
-        <li
-          v-for="ingredient in valeur.realisation.ingredients"
-          :key="ingredient.ingredient"
-        >
-          {{ libelleQuantite(ingredient) }} — {{ libelle(ingredient.ingredient)
-          }}<template v-if="ingredient.conservation"
-            >, {{ libelle(ingredient.conservation) }}</template
-          >
-          <span v-if="ingredient.ajoute" class="discret">
-            (absent de la recette)</span
-          >
-          <template v-if="ingredient.produit">
-            — acheté :
+      <RealisationFaceASaRecette
+        v-if="faceAFace && valeur.recette && valeur.comparaison"
+        :lecture="{
+          ...valeur,
+          recette: valeur.recette,
+          comparaison: valeur.comparaison,
+        }"
+        @choisir="choisir"
+      />
+      <template v-else>
+        <dl class="champs" data-test="champs">
+          <dt>Recette</dt>
+          <dd>
             <RouterLink
-              :to="{ name: 'produit', params: { id: ingredient.produit } }"
+              :to="{
+                name: 'recette',
+                params: { id: valeur.realisation.recette },
+              }"
               >{{
-                valeur.produits.get(ingredient.produit)?.nom ??
-                ingredient.produit
+                valeur.recette?.nom ?? valeur.realisation.recette
               }}</RouterLink
-            ><template v-if="ingredient.lot"
-              >, lot {{ ingredient.lot }}</template
-            ><template v-if="ingredient.dluo"
-              >, DLUO {{ libelleDate(ingredient.dluo) }}</template
-            ><template v-if="ingredient.achat?.date"
-              >, acheté le {{ libelleDate(ingredient.achat.date) }}</template
-            ><template v-if="ingredient.achat?.lieu">
-              à {{ ingredient.achat.lieu }}</template
-            ><template v-if="ingredient.achat?.prixEur !== undefined"
-              >, {{ libelleNombre(ingredient.achat.prixEur) }} €</template
-            >
-          </template>
-          <template v-else-if="ingredient.culture">
-            — récolte de
-            <RouterLink
-              :to="{ name: 'culture', params: { id: ingredient.culture } }"
-              >{{ ingredient.culture }}</RouterLink
-            ><template v-if="ingredient.recolte"
-              >, cueillie le {{ libelleDate(ingredient.recolte) }}</template
-            >
-          </template>
-        </li>
-      </ul>
+            >, version {{ valeur.realisation.recetteVersion }} suivie
+          </dd>
+          <ChampsDeRealisation
+            :realisation="valeur.realisation"
+            :duree="valeur.duree"
+          />
+        </dl>
 
-      <h3>Phases</h3>
-      <p v-if="valeur.realisation.phases.length === 0">
-        Aucune phase commencée.
-      </p>
-      <ol v-else class="phases" data-test="frise">
-        <li
-          v-for="phase in valeur.realisation.phases"
-          :key="phase.id"
-          data-test="phase"
-        >
-          <p class="titre">
-            {{ libelleDePhase(phase.id)
-            }}<span v-if="phase.ajoutee" class="discret">
-              (absente de la recette)</span
-            >
-          </p>
-          <dl class="champs">
-            <dt>Dates</dt>
-            <dd>
-              du {{ libelleDateOuInstant(phase.debut)
-              }}<template v-if="phase.fin">
-                au {{ libelleDateOuInstant(phase.fin) }}</template
-              >
-            </dd>
-            <dt>Durée</dt>
-            <dd>
-              <template v-if="phase.fin">{{
-                libelleDuree(dureeDePhase(phase, valeur.maintenant).ms)
-              }}</template>
-              <template v-else
-                ><strong>en cours</strong>, depuis
-                {{
-                  libelleDuree(dureeDePhase(phase, valeur.maintenant).ms)
-                }}</template
-              >
-            </dd>
-            <template v-if="phase.contenant">
-              <dt>Contenant</dt>
-              <dd>
-                <RouterLink
-                  :to="{ name: 'contenant', params: { id: phase.contenant } }"
-                  >{{
-                    valeur.contenants.get(phase.contenant)?.nom ??
-                    phase.contenant
-                  }}</RouterLink
-                ><template v-if="phase.nombre > 1">
-                  × {{ phase.nombre }}</template
-                >
-              </dd>
-            </template>
-            <template v-if="phase.temperatureC">
-              <dt>Température</dt>
-              <dd>
-                {{ libelleTemperature(phase.temperatureC)
-                }}<template v-if="phase.temperatureC.mesure">
-                  ({{ phase.temperatureC.mesure }})</template
-                >
-              </dd>
-            </template>
-            <template v-if="phase.conditions">
-              <dt>Conditions</dt>
-              <dd>{{ phase.conditions }}</dd>
-            </template>
-          </dl>
-        </li>
-      </ol>
-
-      <template v-if="valeur.realisation.ecarts.length">
-        <h3>Écarts</h3>
-        <ul class="liste">
-          <li v-for="ecart in valeur.realisation.ecarts" :key="ecart">
-            {{ ecart }}
+        <h3>Ingrédients</h3>
+        <p v-if="valeur.realisation.ingredients.length === 0">
+          Aucun ingrédient noté.
+        </p>
+        <ul v-else class="liste" data-test="ingredients">
+          <li
+            v-for="ingredient in valeur.realisation.ingredients"
+            :key="ingredient.ingredient"
+          >
+            <IngredientEmploye
+              :ingredient="ingredient"
+              :produits="valeur.produits"
+            />
           </li>
         </ul>
-      </template>
 
-      <template v-if="valeur.realisation.resultat">
-        <h3>Résultat</h3>
-        <dl class="champs" data-test="resultat">
-          <template v-if="valeur.realisation.resultat.volumeObtenu">
-            <dt>Volume obtenu</dt>
-            <dd>
-              {{ libelleQuantite(valeur.realisation.resultat.volumeObtenu) }}
-            </dd>
-          </template>
-          <template
-            v-if="valeur.realisation.resultat.degreEstime !== undefined"
-          >
-            <dt>Degré estimé</dt>
-            <dd>
-              {{ libelleNombre(valeur.realisation.resultat.degreEstime) }} % vol
-            </dd>
-          </template>
-        </dl>
-      </template>
-
-      <h3>Dégustations</h3>
-      <DegustationsDeRealisation
-        :degustations="valeur.degustations"
-        :evolution="valeur.evolution"
-      />
-
-      <h3>Comparaison à la recette</h3>
-      <div data-test="comparaison">
-        <ComparaisonALaRecette
-          v-if="valeur.comparaison && valeur.recette"
-          :comparaison="valeur.comparaison"
-          :version="valeur.recette.version"
-          :suivie="valeur.realisation.recetteVersion"
-        />
-        <p v-else>
-          La fiche de la recette « {{ valeur.realisation.recette }} » est
-          introuvable ou illisible : pas de comparaison.
+        <h3>Phases</h3>
+        <p v-if="valeur.realisation.phases.length === 0">
+          Aucune phase commencée.
         </p>
-      </div>
-
-      <h3>Journal</h3>
-      <div data-test="journal">
-        <p v-if="valeur.journal.fiches.length === 0">Aucune entrée.</p>
-        <ol class="journal">
+        <ol v-else class="phases" data-test="frise">
           <li
-            v-for="entree in valeur.journal.fiches"
-            :key="entree.chemin"
-            data-test="entree-du-journal"
+            v-for="phase in valeur.realisation.phases"
+            :key="phase.id"
+            data-test="phase"
           >
-            <p class="date">
-              {{ libelleDate(entree.date) }} — {{ libelle(entree.evenement) }}
-            </p>
-            <PhotosDeFiche
-              :photos="entree.photos"
-              :legende="`${libelle(entree.evenement)}, ${libelleDate(entree.date)}`"
+            <PhaseRealisee
+              :phase="phase"
+              :libelle="libelleDePhase(phase.id)"
+              :maintenant="valeur.maintenant"
+              :contenants="valeur.contenants"
             />
-            <TexteDeFiche :corps="entree.corps" />
           </li>
         </ol>
-        <FichesInvalides :invalides="valeur.journal.invalides" />
-      </div>
 
-      <PhotosDeFiche
-        :photos="valeur.realisation.photos"
-        :legende="valeur.realisation.nom"
-      />
-      <TexteDeFiche :corps="valeur.realisation.corps" />
+        <EcartsEtResultat :realisation="valeur.realisation" />
+
+        <h3>Dégustations</h3>
+        <DegustationsDeRealisation
+          :degustations="valeur.degustations"
+          :evolution="valeur.evolution"
+        />
+
+        <h3>Comparaison à la recette</h3>
+        <div data-test="comparaison">
+          <ComparaisonALaRecette
+            v-if="valeur.comparaison && valeur.recette"
+            :comparaison="valeur.comparaison"
+            :version="valeur.recette.version"
+            :suivie="valeur.realisation.recetteVersion"
+          />
+          <p v-else>
+            La fiche de la recette « {{ valeur.realisation.recette }} » est
+            introuvable ou illisible : pas de comparaison.
+          </p>
+        </div>
+
+        <JournalDeRealisation :journal="valeur.journal" />
+
+        <PhotosDeFiche
+          :photos="valeur.realisation.photos"
+          :legende="valeur.realisation.nom"
+        />
+        <TexteDeFiche :corps="valeur.realisation.corps" />
+      </template>
     </article>
   </main>
 </template>
