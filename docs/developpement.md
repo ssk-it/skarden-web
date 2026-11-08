@@ -9,7 +9,7 @@ src/main.ts      le point d'entrée : monte l'application, son routeur, et l'ouv
 src/App.vue      l'en-tête et la page courante
 src/routeur.ts   les adresses : `#/<propriétaire>/<dépôt>/…`
 src/depot/       la frontière avec le dépôt de données : les ports (`lecteur.ts`, `ecrivain.ts`), leurs adaptateurs GitHub, le cache par empreinte, ce que le site retient du visiteur
-src/fiches/      le domaine : le format (`referentiel.yml`, frontmatter), le dépôt de fiches, le Markdown assaini, les libellés
+src/fiches/      le domaine : le format (`referentiel.yml`, frontmatter), le dépôt de fiches, les transformations, le Markdown assaini, les libellés
 src/pages/       une page par adresse, et le cadre d'un dépôt qui l'ouvre et en dit les erreurs
 src/composants/  ce que les pages partagent : galerie et ajout de photos, texte d'une fiche, message d'erreur, jeton
 src/style.css    les couleurs de Skarden, claires et sombres

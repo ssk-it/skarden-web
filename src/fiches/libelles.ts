@@ -168,3 +168,36 @@ export function libelleDelai({ depuis, jours }: Delai): string {
       : `${jours} ${pluriel(jours, "jour")} après le début`;
   return `${quand}, avant la fin`;
 }
+
+// RG-comparaison-a-la-recette : un écart signé, avec un vrai signe moins, et sa part de la quantité prévue.
+const signe = (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "±");
+const signeNombre = (n: number) => `${signe(n)}${libelleNombre(Math.abs(n))}`;
+export function libelleEcart(ecart: {
+  quantite: number;
+  unite: string;
+  pourcentage: number;
+}): string {
+  const quantite = libelleQuantite({
+    ...ecart,
+    quantite: Math.abs(ecart.quantite),
+  });
+  return `${signe(ecart.quantite)}${quantite} (${signeNombre(ecart.pourcentage)} %)`;
+}
+
+export const libelleTemperature = ({
+  min,
+  max,
+}: {
+  min: number;
+  max: number;
+}) =>
+  min === max
+    ? `${libelleNombre(min)} °C`
+    : `${libelleNombre(min)} à ${libelleNombre(max)} °C`;
+
+// RG-champs-de-la-fiche-realisation : une date, ou une date avec heure à l'heure de Paris.
+export function libelleDateOuInstant(date: string): string {
+  const heure = /T(\d{2}):(\d{2})$/.exec(date);
+  if (!heure) return libelleDate(date);
+  return `${libelleDate(date.slice(0, 10))} à ${Number(heure[1])} h ${heure[2]}`;
+}

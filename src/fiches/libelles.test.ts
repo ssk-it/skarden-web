@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   libelle,
   libelleDelai,
+  libelleDateOuInstant,
   libelleDuree,
+  libelleEcart,
   libellePlageDeDurees,
   libelleQuantite,
+  libelleTemperature,
 } from "./libelles";
 
 // RG-page-d-un-animal : les valeurs fermées s'affichent en mots lisibles, jamais sous leur code.
@@ -86,6 +89,27 @@ describe("les libellés des transformations", () => {
     );
     expect(libelleDelai({ depuis: "debut", jours: 2 })).toBe(
       "2 jours après le début, avant la fin",
+    );
+  });
+
+  it("écrit un écart signé, et sa part de la quantité prévue", () => {
+    expect(
+      libelleEcart({ quantite: -11, unite: "g", pourcentage: -27.5 }),
+    ).toBe("−11 g (−27,5 %)");
+    expect(libelleEcart({ quantite: 5, unite: "ml", pourcentage: 2 })).toBe(
+      "+5 ml (+2 %)",
+    );
+  });
+
+  it("écrit une température relevée ou visée", () => {
+    expect(libelleTemperature({ min: 18, max: 22 })).toBe("18 à 22 °C");
+    expect(libelleTemperature({ min: 20, max: 20 })).toBe("20 °C");
+  });
+
+  it("écrit une date, ou une date avec heure", () => {
+    expect(libelleDateOuInstant("2026-11-08")).toBe("8 novembre 2026");
+    expect(libelleDateOuInstant("2026-11-08T09:30")).toBe(
+      "8 novembre 2026 à 9 h 30",
     );
   });
 

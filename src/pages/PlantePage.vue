@@ -3,6 +3,7 @@ import { RouterLink } from "vue-router";
 import AjoutDePhotos from "../composants/AjoutDePhotos.vue";
 import FichesInvalides from "../composants/FichesInvalides.vue";
 import ListeDeCultures from "../composants/ListeDeCultures.vue";
+import ListeDeRealisations from "../composants/ListeDeRealisations.vue";
 import MessageErreur from "../composants/MessageErreur.vue";
 import PhotosDeFiche from "../composants/PhotosDeFiche.vue";
 import TexteDeFiche from "../composants/TexteDeFiche.vue";
@@ -13,7 +14,12 @@ const id = useIdentifiant();
 const { valeur, erreur, enCours } = useChargement(
   async (depot) => {
     const plante = await depot.lirePlante(id.value);
-    return { plante, cultures: await depot.culturesDe(plante.id) };
+    const cultures = await depot.culturesDe(plante.id);
+    // RG-realisations-d-une-fiche : la plante retrouve ses réalisations par ses cultures, jamais par un champ à elle (cadrage 2026-007, décision 05).
+    const realisations = depot.declare("realisations")
+      ? await depot.realisationsAvecCultures(cultures.fiches.map((c) => c.id))
+      : undefined;
+    return { plante, cultures, realisations };
   },
   () => id.value,
 );
@@ -88,6 +94,11 @@ const { valeur, erreur, enCours } = useChargement(
       <h3>Cultures</h3>
       <ListeDeCultures :cultures="valeur.cultures.fiches" />
       <FichesInvalides :invalides="valeur.cultures.invalides" />
+      <template v-if="valeur.realisations">
+        <h3>Réalisations</h3>
+        <ListeDeRealisations :realisations="valeur.realisations.fiches" />
+        <FichesInvalides :invalides="valeur.realisations.invalides" />
+      </template>
     </article>
   </main>
 </template>
