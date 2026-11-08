@@ -2,12 +2,13 @@
 import {
   libelle,
   libelleDuree,
-  libelleEcart,
   libellePlageDeDurees,
   libelleQuantite,
   libelleTemperature,
 } from "../fiches/libelles";
 import type { Comparaison } from "../fiches/transformations";
+import ConstatDePhase from "./ConstatDePhase.vue";
+import ConstatDIngredient from "./ConstatDIngredient.vue";
 
 // RG-comparaison-a-la-recette : l'écart entre ce qu'on visait et ce qu'on a fait se lit d'un coup d'œil ; chaque signal se dit en toutes lettres, la mise en gras ne fait que le redoubler.
 defineProps<{
@@ -59,25 +60,7 @@ defineProps<{
           >
           <template v-else>non employé</template>
         </td>
-        <td>
-          <template v-if="ligne.etat === 'employe'">
-            <strong v-if="ligne.conservationDifferente"
-              >conservation différente, écart non calculé</strong
-            >
-            <template v-else-if="ligne.incomparable"
-              >unités différentes, écart non calculé</template
-            >
-            <template v-else-if="ligne.ecart && ligne.ecart.quantite === 0"
-              >conforme</template
-            >
-            <strong v-else-if="ligne.ecart">{{
-              libelleEcart(ligne.ecart)
-            }}</strong>
-          </template>
-          <strong v-else-if="ligne.etat === 'ajoute'">ajouté</strong>
-          <strong v-else-if="ligne.etat === 'manquant'">manquant</strong>
-          <template v-else>facultatif, non employé</template>
-        </td>
+        <td><ConstatDIngredient :ligne="ligne" /></td>
       </tr>
     </tbody>
   </table>
@@ -98,14 +81,10 @@ defineProps<{
         :key="`${ligne.etat}-${ligne.id}`"
         data-test="comparaison-phase"
       >
-        <!-- Le constat suit le nom de la phase : une quatrième colonne ne tiendrait pas sur un téléphone (WCAG 1.4.10). -->
+        <!-- Le constat suit le nom de la phase, plage dépassée comprise : une quatrième colonne ne tiendrait pas sur un téléphone (WCAG 1.4.10). -->
         <th scope="row">
           {{ ligne.libelle }}<br />
-          <template v-if="ligne.etat === 'realisee'">réalisée</template>
-          <template v-else-if="ligne.etat === 'en-cours'">en cours</template>
-          <template v-else-if="ligne.etat === 'a-venir'">à venir</template>
-          <strong v-else-if="ligne.etat === 'ajoutee'">ajoutée</strong>
-          <strong v-else>n'a pas eu lieu</strong>
+          <ConstatDePhase :ligne="ligne" />
         </th>
         <td>
           <template v-if="'duree' in ligne">{{
@@ -115,12 +94,6 @@ defineProps<{
             <span class="discret">
               (cible : {{ libellePlageDeDurees(ligne.cible.dureeCible) }})</span
             ></template
-          >
-          <strong v-if="'duree' in ligne && ligne.duree.horsPlage === 'longue'">
-            trop longue</strong
-          >
-          <strong v-if="'duree' in ligne && ligne.duree.horsPlage === 'courte'">
-            trop courte</strong
           >
         </td>
         <td>
@@ -132,9 +105,6 @@ defineProps<{
               (cible :
               {{ libelleTemperature(ligne.cible.temperatureC) }})</span
             ></template
-          >
-          <strong v-if="'temperature' in ligne && ligne.temperature?.horsPlage">
-            hors plage</strong
           >
         </td>
       </tr>

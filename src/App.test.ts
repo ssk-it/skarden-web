@@ -895,3 +895,305 @@ describe("les transformations", () => {
     expect(page.text()).not.toContain("Réalisations");
   });
 });
+
+// Cadrage 2026-008 : sur un grand écran, la réalisation se lit en face de sa recette.
+describe("une réalisation face à sa recette", () => {
+  const D = "/sskorupski/skarden";
+  const EN_COURS = `${D}/realisations/2026-11-08-liqueur-hibiscus`;
+  const FINIE = `${D}/realisations/2026-05-01-liqueur-hibiscus`;
+  const AU_GINGEMBRE = `${D}/realisations/2026-06-01-liqueur-hibiscus-gingembre`;
+
+  // jsdom ne connaît pas `matchMedia` : la largeur de la fenêtre se fixe ici.
+  function fenetre(large: boolean) {
+    window.matchMedia = ((requete: string) => ({
+      matches: large,
+      media: requete,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    })) as unknown as typeof window.matchMedia;
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-10T11:00:00Z"));
+    fenetre(true);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    Reflect.deleteProperty(window, "matchMedia");
+  });
+
+  type Page = Awaited<ReturnType<typeof visiter>>["page"];
+  const cote = (ligne: { find: Page["find"] }, nom: string) =>
+    ligne.find(`[data-cote=${nom}]`).text();
+  const ligneDIngredient = (page: Page, ingredient: string) => {
+    const ligne = page
+      .findAll("[data-test=ligne-ingredient]")
+      .find((l) => l.attributes("data-ingredient") === ingredient);
+    expect(ligne, ingredient).toBeDefined();
+    return ligne as NonNullable<typeof ligne>;
+  };
+  const present = <T>(valeur: T | null | undefined): T => {
+    expect(valeur).toBeTruthy();
+    return valeur as T;
+  };
+  const lignesDePhase = (page: Page) => page.findAll("[data-test=ligne-phase]");
+
+  // RG-realisation-face-a-sa-recette, RG-page-d-une-realisation
+  it("s'ouvre en deux colonnes sur une fenêtre large : la recette suivie à gauche, la réalisation à droite", async () => {
+    const { page } = await visiter(EN_COURS);
+    expect(page.find("h2").text()).toBe("Liqueur d'hibiscus, novembre 2026");
+    const face = page.find("[data-test=face-a-face]");
+    expect(face.exists()).toBe(true);
+    expect(cote(face.find("[data-test=entetes]"), "recette")).toContain(
+      "Liqueur d'hibiscus",
+    );
+    expect(cote(face.find("[data-test=entetes]"), "realisation")).toContain(
+      "en cours",
+    );
+    expect(page.find("[data-test=comparaison] table").exists()).toBe(false);
+    expect(page.find("table.tableau caption").exists()).toBe(false);
+  });
+
+  // RG-realisation-face-a-sa-recette, RG-comparaison-a-la-recette
+  it("aligne chaque ingrédient en face du même ingrédient employé, avec l'écart sur la ligne, côté réalisation", async () => {
+    const { page } = await visiter(EN_COURS);
+    const hibiscus = ligneDIngredient(page, "hibiscus");
+    expect(cote(hibiscus, "recette")).toContain("40 g");
+    expect(cote(hibiscus, "realisation")).toContain("29 g");
+    expect(cote(hibiscus, "realisation")).toContain("lot YE1156");
+    expect(
+      hibiscus.find("[data-cote=realisation] [data-test=constat]").text(),
+    ).toContain("−27,5 %");
+    expect(
+      hibiscus.find("[data-cote=recette] [data-test=constat]").exists(),
+    ).toBe(false);
+
+    const sucre = ligneDIngredient(page, "sucre");
+    expect(cote(sucre, "recette")).toContain("200 g");
+    expect(
+      sucre
+        .find(
+          "[data-cote=realisation] li, [data-cote=realisation] [data-test=employe]",
+        )
+        .exists(),
+    ).toBe(false);
+    expect(cote(sucre, "realisation")).toContain("manquant");
+
+    const roux = ligneDIngredient(page, "sucre-roux");
+    expect(roux.find("[data-cote=recette] [data-test=prevu]").exists()).toBe(
+      false,
+    );
+    expect(cote(roux, "realisation")).toContain("143 g");
+    expect(cote(roux, "realisation")).toContain("ajouté");
+  });
+
+  // RG-realisation-face-a-sa-recette
+  it("aligne chaque phase en face de la même phase réalisée, et donne une ligne aux phases à venir", async () => {
+    const { page } = await visiter(EN_COURS);
+    const [maceration, filtration, repos] = lignesDePhase(page).map((l) =>
+      present(l),
+    );
+    expect(cote(maceration, "recette")).toContain("3 à 5 jours");
+    expect(cote(maceration, "realisation")).toContain("en cours");
+    expect(cote(maceration, "realisation")).toContain("2 jours et 12 h");
+    expect(cote(maceration, "realisation")).toContain("Bocal Le Parfait 1 l");
+    expect(cote(filtration, "recette")).toContain("Filtration");
+    expect(cote(filtration, "realisation")).toContain("à venir");
+    expect(
+      filtration.find("[data-cote=realisation] [data-test=reelle]").exists(),
+    ).toBe(false);
+    expect(cote(repos, "realisation")).toContain("à venir");
+  });
+
+  it("donne sa ligne à une phase qui n'a pas eu lieu", async () => {
+    const { page } = await visiter(FINIE);
+    const lignes = lignesDePhase(page).map((l) => cote(l, "realisation"));
+    expect(lignes[1]).toContain("n'a pas eu lieu");
+  });
+
+  // WCAG 1.3.2 : on lit une ligne entière, recette puis réalisation, avant de passer à la suivante.
+  it("se lit d'une ligne à l'autre, recette puis réalisation", async () => {
+    const { page } = await visiter(EN_COURS);
+    const ordre = page
+      .findAll("[data-test=lignes-ingredients] [data-cote]")
+      .map((c) => c.attributes("data-cote"));
+    expect(ordre.length).toBeGreaterThan(2);
+    ordre.forEach((nom, i) =>
+      expect(nom).toBe(i % 2 === 0 ? "recette" : "realisation"),
+    );
+  });
+
+  // RG-comparaison-a-la-recette : les deux formes montrent les mêmes écarts.
+  it("montre sur les lignes les mêmes écarts que le tableau", async () => {
+    const constats = (page: Page, selecteur: string) =>
+      page.findAll(selecteur).map((e) => e.text().replace(/\s+/g, " ").trim());
+    const large = (await visiter(EN_COURS)).page;
+    const ingredients = constats(
+      large,
+      "[data-test=ligne-ingredient] [data-test=constat]",
+    );
+    const phases = constats(
+      large,
+      "[data-test=ligne-phase] [data-test=constat]",
+    );
+    fenetre(false);
+    const etroite = (await visiter(EN_COURS)).page;
+    expect(ingredients).toEqual(
+      constats(
+        etroite,
+        "[data-test=comparaison-ingredient] [data-test=constat]",
+      ),
+    );
+    expect(phases).toEqual(
+      constats(etroite, "[data-test=comparaison-phase] [data-test=constat]"),
+    );
+    expect(ingredients).toHaveLength(5);
+    expect(phases).toHaveLength(3);
+  });
+
+  it("annonce que la recette a changé depuis la réalisation", async () => {
+    const { page } = await visiter(EN_COURS);
+    expect(page.find("[data-test=face-a-face]").text()).toContain(
+      "La recette est en version 2, et cette réalisation a suivi la version 1",
+    );
+  });
+
+  // RG-realisation-face-a-sa-recette : sous les lignes alignées, chaque colonne garde ce qui lui est propre.
+  it("garde sous les lignes ce qui est propre à chaque colonne", async () => {
+    const { page } = await visiter(EN_COURS);
+    const propres = page.find("[data-test=propres]");
+    const recette = cote(propres, "recette");
+    expect(recette).toContain("On filtre, puis on laisse reposer.");
+    expect(recette).toContain("Un carnet de famille");
+    expect(
+      propres
+        .find(
+          `[data-cote=recette] a[href='${D}/recettes/liqueur-hibiscus-gingembre']`,
+        )
+        .exists(),
+    ).toBe(true);
+    const realisation = cote(propres, "realisation");
+    expect(realisation).toContain("Du sucre roux à la place du sucre");
+    expect(realisation).toContain("La couleur fonce déjà.");
+    const finie = (await visiter(FINIE)).page.find("[data-test=propres]");
+    expect(cote(finie, "realisation")).toContain("1,2 l");
+    expect(finie.findAll("[data-test=degustation]")).toHaveLength(2);
+  });
+
+  // RG-realisation-face-a-sa-recette, décision 2026-008/01 : la variante suivie, et un lien vers la recette dont elle dérive.
+  it("montre la variante suivie, avec un lien vers la recette dont elle dérive", async () => {
+    const { page } = await visiter(AU_GINGEMBRE);
+    const entetes = page.find("[data-test=entetes]");
+    expect(cote(entetes, "recette")).toContain(
+      "Liqueur d'hibiscus au gingembre",
+    );
+    const lien = entetes.find(
+      `[data-cote=recette] a[href='${D}/recettes/liqueur-hibiscus']`,
+    );
+    expect(lien.text()).toBe("Liqueur d'hibiscus");
+    const gingembre = ligneDIngredient(page, "gingembre");
+    expect(cote(gingembre, "realisation")).toContain("+5 g");
+    expect(cote(gingembre, "realisation")).not.toContain("ajouté");
+  });
+
+  // RG-realisation-face-a-sa-recette : les autres réalisations de la même recette, la plus récente d'abord, avec leur statut.
+  it("propose les autres réalisations de la même recette, et en change sans quitter la page ni relire le dépôt", async () => {
+    const lecteur = lecteurEnMemoire(DEPOT_EXEMPLE);
+    let ouvertures = 0;
+    const ouvrir: OuvrirDepot = async () => {
+      ouvertures++;
+      return DepotDeFiches.ouvrir(lecteur);
+    };
+    const { page, routeur } = await visiter(EN_COURS, ouvrir);
+    const selecteur = page.find<HTMLSelectElement>(
+      "[data-test=autres-realisations] select",
+    );
+    expect(selecteur.findAll("option").map((o) => o.text())).toEqual([
+      expect.stringMatching(/^Liqueur d'hibiscus, mai 2026 — terminée/),
+    ]);
+    const recette = page.find(
+      "[data-test=entetes] [data-cote=recette]",
+    ).element;
+    const avant = [...lecteur.lus];
+    await selecteur.setValue("2026-05-01-liqueur-hibiscus");
+    await page.find("[data-test=autres-realisations]").trigger("submit");
+    await flushPromises();
+    expect(routeur.currentRoute.value.params.id).toBe(
+      "2026-05-01-liqueur-hibiscus",
+    );
+    expect(page.find("h2").text()).toBe("Liqueur d'hibiscus, mai 2026");
+    expect(
+      page.find("[data-test=entetes] [data-cote=realisation]").text(),
+    ).toContain("terminée");
+    expect(page.find("[data-test=entetes] [data-cote=recette]").element).toBe(
+      recette,
+    );
+    expect(ouvertures).toBe(1);
+    // La recette, ses variantes et les réalisations de la recette, déjà lues, ne se relisent pas.
+    const relus = lecteur.lus.slice(avant.length);
+    expect(relus).not.toContain("recettes/liqueur-hibiscus.md");
+    expect(relus).not.toContain("recettes/liqueur-hibiscus-gingembre.md");
+    expect(relus).not.toContain("realisations/2026-05-01-liqueur-hibiscus.md");
+    expect(
+      page
+        .findAll("[data-test=autres-realisations] option")
+        .map((o) => o.text()),
+    ).toEqual([
+      expect.stringMatching(/^Liqueur d'hibiscus, novembre 2026 — en cours/),
+    ]);
+  });
+
+  it("ne propose pas de sélecteur quand la recette n'a pas d'autre réalisation", async () => {
+    const { page } = await visiter(AU_GINGEMBRE);
+    expect(page.find("[data-test=autres-realisations]").exists()).toBe(false);
+  });
+
+  // RG-realisation-face-a-sa-recette : la bascule « Réalisation seule », que le navigateur retient.
+  it("revient à une colonne et à son tableau par la bascule « Réalisation seule », et s'en souvient", async () => {
+    const { page } = await visiter(EN_COURS);
+    const bascule = () => page.find("[data-test=bascule]");
+    expect(bascule().text()).toBe("Réalisation seule");
+    expect(bascule().attributes("aria-pressed")).toBe("false");
+    await bascule().trigger("click");
+    expect(bascule().attributes("aria-pressed")).toBe("true");
+    expect(page.find("[data-test=face-a-face]").exists()).toBe(false);
+    expect(page.find("[data-test=comparaison] table").exists()).toBe(true);
+
+    const revisite = (await visiter(EN_COURS)).page;
+    expect(revisite.find("[data-test=face-a-face]").exists()).toBe(false);
+    await revisite.find("[data-test=bascule]").trigger("click");
+    expect(revisite.find("[data-test=face-a-face]").exists()).toBe(true);
+    expect(
+      (await visiter(EN_COURS)).page.find("[data-test=face-a-face]").exists(),
+    ).toBe(true);
+  });
+
+  it("bascule encore quand le navigateur refuse le stockage", async () => {
+    const { getItem, setItem } = Storage.prototype;
+    Storage.prototype.getItem = () => {
+      throw new Error("SecurityError");
+    };
+    Storage.prototype.setItem = () => {
+      throw new Error("SecurityError");
+    };
+    try {
+      const { page } = await visiter(EN_COURS);
+      expect(page.find("[data-test=face-a-face]").exists()).toBe(true);
+      await page.find("[data-test=bascule]").trigger("click");
+      expect(page.find("[data-test=face-a-face]").exists()).toBe(false);
+    } finally {
+      Object.assign(Storage.prototype, { getItem, setItem });
+    }
+  });
+
+  // RG-realisation-face-a-sa-recette : une fenêtre étroite reste en une colonne, quel que soit le choix.
+  it("garde la page en une colonne sur une fenêtre étroite, sans bascule", async () => {
+    fenetre(false);
+    const { page } = await visiter(EN_COURS);
+    expect(page.find("[data-test=face-a-face]").exists()).toBe(false);
+    expect(page.find("[data-test=bascule]").exists()).toBe(false);
+    expect(page.find("[data-test=comparaison] table").exists()).toBe(true);
+    expect(page.find("[data-test=autres-realisations]").exists()).toBe(false);
+  });
+});

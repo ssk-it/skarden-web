@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
 import FichesInvalides from "../composants/FichesInvalides.vue";
+import IngredientPrevu from "../composants/IngredientPrevu.vue";
 import ListeDeRealisations from "../composants/ListeDeRealisations.vue";
 import MessageErreur from "../composants/MessageErreur.vue";
+import PhasePrevue from "../composants/PhasePrevue.vue";
 import PhotosDeFiche from "../composants/PhotosDeFiche.vue";
 import TexteDeFiche from "../composants/TexteDeFiche.vue";
-import {
-  libelle,
-  libellePlageDeDurees,
-  libelleQuantite,
-  libelleTemperature,
-} from "../fiches/libelles";
+import { libelle, libelleQuantite } from "../fiches/libelles";
 import { useChargement, useIdentifiant } from "./contexte";
 
 // RG-page-d-une-recette : d'où elle vient, ce qu'on en a dérivé, et combien de fois on l'a réellement faite.
@@ -79,14 +76,7 @@ const { valeur, erreur, enCours } = useChargement(
           v-for="ingredient in valeur.recette.ingredients"
           :key="ingredient.ingredient"
         >
-          {{ libelleQuantite(ingredient) }} — {{ libelle(ingredient.ingredient)
-          }}<template v-if="ingredient.conservation"
-            >, {{ libelle(ingredient.conservation) }}</template
-          >
-          <span v-if="ingredient.optionnel" class="discret"> (facultatif)</span>
-          <span v-if="ingredient.note" class="discret">
-            — {{ ingredient.note }}</span
-          >
+          <IngredientPrevu :ingredient="ingredient" />
         </li>
       </ul>
 
@@ -97,25 +87,7 @@ const { valeur, erreur, enCours } = useChargement(
           :key="phase.id"
           data-test="phase"
         >
-          <p class="titre">{{ phase.libelle }}</p>
-          <dl class="champs">
-            <template v-if="phase.dureeCible">
-              <dt>Durée</dt>
-              <dd>{{ libellePlageDeDurees(phase.dureeCible) }}</dd>
-            </template>
-            <template v-if="phase.temperatureC">
-              <dt>Température</dt>
-              <dd>{{ libelleTemperature(phase.temperatureC) }}</dd>
-            </template>
-            <template v-if="phase.contenantCategorie">
-              <dt>Contenant</dt>
-              <dd>{{ libelle(phase.contenantCategorie) }}</dd>
-            </template>
-            <template v-if="phase.conditions">
-              <dt>Conditions</dt>
-              <dd>{{ phase.conditions }}</dd>
-            </template>
-          </dl>
+          <PhasePrevue :phase="phase" />
         </li>
       </ol>
 

@@ -131,7 +131,7 @@ procedures: [preparation-substrat-terre]`,
   ),
 };
 
-// Les transformations, d'après la liqueur d'hibiscus de `sskorupski/skarden` et ses fixtures (cadrage 2026-007) : une recette, sa variante au gingembre, une réalisation finie et une en cours, qui emploient un produit, la menthe de la cuisine et un bocal.
+// Les transformations, d'après la liqueur d'hibiscus de `sskorupski/skarden` et ses fixtures (cadrage 2026-007) : une recette, sa variante au gingembre, une réalisation finie et une en cours, une réalisation de la variante, qui emploient un produit, la menthe de la cuisine et un bocal.
 const FICHES_DES_TRANSFORMATIONS: Record<string, string> = {
   "recettes/liqueur-hibiscus.md": fiche(
     `id: liqueur-hibiscus
@@ -211,6 +211,20 @@ ingredients: []
 phases:
   - { id: maceration, debut: 2026-05-01, fin: 2026-05-04, contenant: bocal-parfait-1l, nombre: 2 }
 resultat: { volume_obtenu: { quantite: 1.2, unite: l }, degre_estime: 25 }`,
+  ),
+  "realisations/2026-06-01-liqueur-hibiscus-gingembre.md": fiche(
+    `id: 2026-06-01-liqueur-hibiscus-gingembre
+nom: Liqueur d'hibiscus au gingembre, juin 2026
+recette: liqueur-hibiscus-gingembre
+recette_version: 1
+statut: terminee
+debut: 2026-06-01
+fin: 2026-06-05
+ingredients:
+  - { ingredient: hibiscus, quantite: 40, unite: g, conservation: seche }
+  - { ingredient: gingembre, quantite: 25, unite: g, conservation: frais }
+phases:
+  - { id: maceration, debut: 2026-06-01, fin: 2026-06-05 }`,
   ),
   "produits/hibiscus-karcade.md": fiche(
     `id: hibiscus-karcade
