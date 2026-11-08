@@ -2,3 +2,18 @@
 allowBuilds:
   # Vérifie à l'installation que son binaire correspond à la machine.
   esbuild: true
+
+# Un paquet n'est installé que sept jours (10 080 minutes) après sa publication, dépendances transitives comprises. Les paquets compromis publiés sur npm — chalk et debug, puis Shai-Hulud, en septembre 2025 — ont été retirés en quelques heures à quelques jours : le délai laisse ce temps-là à la détection. pnpm 12 applique un jour par défaut ; le fixer ici le porte à sept et rend la règle stricte : une version trop jeune fait échouer l'installation (ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION), y compris depuis le lockfile en CI, au lieu d'être approuvée en silence dans `minimumReleaseAgeExclude`. Le `cooldown` de `.github/dependabot.yml` suit la même durée. Un correctif de sécurité qui ne peut pas attendre se nomme dans `minimumReleaseAgeExclude`, en `paquet@version`, avec la date où la ligne peut partir. À revoir si le délai bloque le travail plus d'une fois par mois, ou si pnpm change son défaut.
+minimumReleaseAge: 10080
+
+# Versions verrouillées par les demandes de Dependabot fusionnées avant que le délai ne devienne explicite (8 novembre 2026), et qui l'auraient enfreint : approuvées telles quelles, elles avaient de trois à sept jours et aucune n'est signalée. Lignes à retirer après le 12 novembre 2026.
+minimumReleaseAgeExclude:
+  - '@vitest/browser-playwright@5.1.0'
+  - '@vitest/browser@5.1.0'
+  - '@vitest/mocker@5.1.0'
+  - '@vitest/pretty-format@5.1.0'
+  - '@vitest/spy@5.1.0'
+  - '@vitest/ui@5.1.0'
+  - '@vitest/utils@5.1.0'
+  - 'globals@17.14.0'
+  - 'vitest@5.1.0'

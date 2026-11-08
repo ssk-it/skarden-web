@@ -4,6 +4,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Dependabot ne propose une version qu'une fois âgée de sept jours, la durée du `minimumReleaseAge` de pnpm-workspace.yaml. Avec son défaut de trois jours, ses demandes de fusion porteraient des versions que l'installation refuse (ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION). Les mises à jour de sécurité ne l'attendent pas : si l'installation en refuse une, l'exclure dans pnpm-workspace.yaml.
+    cooldown:
+      default-days: 7
     groups:
       # `typescript-eslint` borne `typescript` (peerDependencies `>=4.8.4 <6.1.0`, vérifié en 8.72.0) ; pnpm n'en fait qu'un avertissement. Défaire le groupe quand la borne disparaît.
       typescript:
