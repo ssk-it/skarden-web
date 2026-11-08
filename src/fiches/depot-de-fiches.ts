@@ -13,6 +13,17 @@ import {
   type FicheLue,
   type Referentiel,
 } from "./format";
+import {
+  facultatif,
+  fourchette,
+  liste,
+  mois,
+  nombre,
+  objet,
+  objets,
+  texte,
+  type Fourchette,
+} from "./champs";
 
 // RG-champs-de-la-fiche-famille : une famille sans `regne` est végétale, comme toutes celles d'avant l'animal.
 export type Regne = "vegetal" | "animal";
@@ -88,10 +99,7 @@ export interface Soin {
   phases: string[];
 }
 
-export interface Fourchette {
-  min: number;
-  max: number;
-}
+export type { Fourchette };
 
 export interface Densite extends Fourchette {
   unite: "par-m2-sol" | "par-litre";
@@ -627,50 +635,6 @@ export function dernierEffectif(
     (e): e is EntreeDuJournal & { effectif: number } =>
       e.evenement === "comptage" && e.effectif !== undefined,
   );
-}
-
-// Le dépôt de données vérifie ses fiches contre leurs schémas ; le site ne vérifie que ce dont il a besoin pour afficher, et refuse une fiche à qui cela manque.
-function texte(donnees: Record<string, unknown>, champ: string): string {
-  const valeur = donnees[champ];
-  if (typeof valeur === "string" && valeur !== "") return valeur;
-  // YAML 1.1 lirait une date comme un objet Date ; la bibliothèque `yaml` suit YAML 1.2 et rend une chaîne, mais rien ne coûte de l'accepter.
-  if (valeur instanceof Date) return valeur.toISOString().slice(0, 10);
-  throw new FicheInvalide(`champ « ${champ} » absent ou vide`);
-}
-
-const facultatif = (donnees: Record<string, unknown>, champ: string) =>
-  donnees[champ] === undefined || donnees[champ] === null
-    ? undefined
-    : texte(donnees, champ);
-
-const liste = (valeur: unknown): string[] =>
-  Array.isArray(valeur)
-    ? valeur.filter((v): v is string => typeof v === "string")
-    : [];
-
-const nombre = (valeur: unknown): number | undefined =>
-  typeof valeur === "number" && Number.isFinite(valeur) ? valeur : undefined;
-
-const objet = (valeur: unknown): Record<string, unknown> =>
-  typeof valeur === "object" && valeur !== null && !Array.isArray(valeur)
-    ? (valeur as Record<string, unknown>)
-    : {};
-
-const objets = (valeur: unknown): Record<string, unknown>[] =>
-  Array.isArray(valeur) ? valeur.map(objet) : [];
-
-const mois = (valeur: unknown): number[] =>
-  Array.isArray(valeur)
-    ? valeur.filter((m): m is number => typeof m === "number")
-    : [];
-
-function fourchette(valeur: unknown): Fourchette | undefined {
-  const { min, max } = objet(valeur);
-  const bas = nombre(min);
-  const haut = nombre(max);
-  return bas === undefined || haut === undefined
-    ? undefined
-    : { min: bas, max: haut };
 }
 
 function versFamille({ donnees, corps }: FicheLue): Famille {
