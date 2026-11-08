@@ -437,6 +437,43 @@ describe("l'animal", () => {
     const plantes = (await visiter(D, undefined, DEPOT_DE_PLANTES)).page;
     expect(plantes.text()).not.toContain("Élevages en cours");
   });
+
+  // RG-accueil-realisations-en-cours
+  it("à l'accueil, montre les réalisations en cours sous les élevages, avec leur recette, leur phase et la dernière entrée", async () => {
+    const { page } = await visiter(D);
+    const titres = page.findAll("main h2").map((h) => h.text());
+    expect(titres).toEqual([
+      "Cultures en cours",
+      "Élevages en cours",
+      "Réalisations en cours",
+    ]);
+    const realisations = page
+      .findAll("[data-test=realisation-en-cours]")
+      .map((r) => r.text());
+    expect(realisations).toHaveLength(1);
+    expect(realisations[0]).toContain("Liqueur d'hibiscus, novembre 2026");
+    expect(realisations[0]).toContain("d'après Liqueur d'hibiscus");
+    expect(realisations[0]).toContain("8 novembre 2026");
+    expect(realisations[0]).toContain(
+      "En cours : Macération des fleurs dans l'alcool",
+    );
+    expect(realisations[0]).toContain("9 novembre 2026 — observation");
+    expect(lien(page, "realisations/2026-11-08-liqueur-hibiscus")).toBe(true);
+    expect(lien(page, "recettes/liqueur-hibiscus")).toBe(true);
+    const plantes = (await visiter(D, undefined, DEPOT_DE_PLANTES)).page;
+    expect(plantes.text()).not.toContain("Réalisations en cours");
+  });
+
+  it("à l'accueil, dit qu'aucune réalisation n'est en cours", async () => {
+    const sansRealisationEnCours = Object.fromEntries(
+      Object.entries(DEPOT_EXEMPLE).filter(
+        ([chemin]) => chemin !== "realisations/2026-11-08-liqueur-hibiscus.md",
+      ),
+    );
+    const { page } = await visiter(D, undefined, sansRealisationEnCours);
+    expect(page.text()).toContain("Aucune réalisation en cours.");
+    expect(page.findAll("[data-test=realisation-en-cours]")).toHaveLength(0);
+  });
 });
 
 // RG-liste-des-emplacements

@@ -20,6 +20,7 @@ import {
   versRealisation,
   versRecette,
   type Avis,
+  type PhaseDeRealisation,
   type Realisation,
   type Recette,
 } from "./transformations";
@@ -223,6 +224,14 @@ export interface ElevageALaUne {
   derniere?: EntreeDuJournal;
 }
 
+// RG-accueil-realisations-en-cours : la phase en cours est toute phase sans fin, comme sur la page d'une réalisation ; il peut n'y en avoir aucune, ou plusieurs.
+export interface RealisationALaUne {
+  realisation: Realisation;
+  recette?: Recette;
+  phasesEnCours: PhaseDeRealisation[];
+  derniere?: EntreeDuJournal;
+}
+
 export type EspecesDUneFamille =
   | { regne: "vegetal"; especes: Liste<Plante> }
   | { regne: "animal"; especes: Liste<Animal> };
@@ -411,16 +420,19 @@ export class DepotDeFiches {
     return filtrer(entrees, (e) => e.elevage === elevage.id);
   }
 
-  // RG-accueil-cultures-en-cours, RG-accueil-elevages-en-cours : le journal ne se lit qu'une fois, à partir du plus ancien début de ce qui est en cours.
+  // RG-accueil-cultures-en-cours, RG-accueil-elevages-en-cours, RG-accueil-realisations-en-cours : le journal ne se lit qu'une fois, à partir du plus ancien début de ce qui est en cours, pris à la journée.
   async accueil(mois: number = moisEnCours()): Promise<{
     cultures: CultureALaUne[];
     elevages?: ElevageALaUne[];
+    realisations?: RealisationALaUne[];
     invalides: FicheEnErreur[];
   }> {
     const avecElevages = this.declare("elevages");
-    const [cultures, elevages] = await Promise.all([
+    const avecRealisations = this.declare("realisations");
+    const [cultures, elevages, realisations] = await Promise.all([
       this.listerCultures(),
       this.listerElevages(),
+      this.listerRealisations(),
     ]);
     const culturesEnCours = cultures.fiches.filter(
       (c) => c.statut === "en-cours",
@@ -428,7 +440,14 @@ export class DepotDeFiches {
     const elevagesEnCours = elevages.fiches.filter(
       (e) => e.statut === "en-cours",
     );
-    const debuts = [...culturesEnCours, ...elevagesEnCours].map((l) => l.debut);
+    const realisationsEnCours = realisations.fiches.filter(
+      (r) => r.statut === "en-cours",
+    );
+    const debuts = [
+      ...culturesEnCours,
+      ...elevagesEnCours,
+      ...realisationsEnCours,
+    ].map((l) => l.debut.slice(0, 10));
     const plusAncienDebut = debuts.reduce(
       (plusAncien, debut) => (debut < plusAncien ? debut : plusAncien),
       debuts[0] ?? "",
@@ -437,19 +456,41 @@ export class DepotDeFiches {
       debuts.length === 0
         ? { fiches: [], invalides: [] }
         : await this.lireJournal((date) => date >= plusAncienDebut);
-    const [culturesALaUne, elevagesALaUne] = await Promise.all([
-      this.culturesALaUne(culturesEnCours, journal.fiches),
-      this.elevagesALaUne(elevagesEnCours, journal.fiches, mois),
-    ]);
+    const [culturesALaUne, elevagesALaUne, realisationsALaUne] =
+      await Promise.all([
+        this.culturesALaUne(culturesEnCours, journal.fiches),
+        this.elevagesALaUne(elevagesEnCours, journal.fiches, mois),
+        this.realisationsALaUne(realisationsEnCours, journal.fiches),
+      ]);
     return {
       cultures: culturesALaUne,
       elevages: avecElevages ? elevagesALaUne : undefined,
+      realisations: avecRealisations ? realisationsALaUne : undefined,
       invalides: [
         ...cultures.invalides,
         ...elevages.invalides,
+        ...realisations.invalides,
         ...journal.invalides,
       ],
     };
+  }
+
+  private async realisationsALaUne(
+    enCours: Realisation[],
+    journal: EntreeDuJournal[],
+  ): Promise<RealisationALaUne[]> {
+    const recettes = await Promise.all(
+      enCours.map((r) => this.lireRecette(r.recette).catch(() => undefined)),
+    );
+    const aLaUne = enCours.map((realisation, i) => ({
+      realisation,
+      recette: recettes[i],
+      phasesEnCours: realisation.phases.filter((p) => p.fin === undefined),
+      derniere: journal.find((e) => e.realisation === realisation.id),
+    }));
+    const activite = (r: RealisationALaUne) =>
+      r.derniere?.date ?? r.realisation.debut;
+    return aLaUne.sort((a, b) => activite(b).localeCompare(activite(a)));
   }
 
   private async culturesALaUne(
