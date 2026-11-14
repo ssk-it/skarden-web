@@ -1,4 +1,4 @@
-// La frontière du site avec le dépôt de données, côté écriture (ADR-photos-postees-par-une-branche) : ce que l'envoi de photos attend d'un dépôt, sans nommer GitHub. L'adaptateur est `github-ecriture.ts` ; les tests fournissent `ecrivain-en-memoire.ts`.
+// La frontière du site avec le dépôt de données, côté écriture (ADR-donnees-dans-un-depot-a-part, ADR-photos-postees-par-une-branche) : ce que l'envoi de photos et la déclaration d'une fin de phase attendent d'un dépôt, sans nommer GitHub. L'adaptateur est `github-ecriture.ts` ; les tests fournissent `ecrivain-en-memoire.ts`.
 
 import type { DepotDesigne } from "./lecteur";
 
@@ -66,6 +66,13 @@ export interface EcrivainDuDepot {
   }): Promise<DemandeDeFusion>;
   demanderLaFusionAutomatique(demande: DemandeDeFusion): Promise<void>;
   etatDeLaDemande(demande: DemandeDeFusion): Promise<SuiviDeLaDemande>;
+  // Une branche déjà poussée dont le nom commence par `prefixe`, avec sa demande de fusion ouverte s'il y en a une : une écriture en attente de fusion.
+  brancheEnAttente(prefixe: string): Promise<BrancheEnAttente | undefined>;
+}
+
+export interface BrancheEnAttente {
+  branche: string;
+  demande?: string;
 }
 
 export type OuvrirEcrivain = (

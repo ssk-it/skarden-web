@@ -1,4 +1,5 @@
 import {
+  type BrancheEnAttente,
   type DemandeDeFusion,
   type EcrivainDuDepot,
   type EcritureRefusee,
@@ -14,6 +15,8 @@ export interface ScenarioDEcriture {
   conversion?: EtatDeLaConversion[];
   demande?: (EtatDeLaDemande | SuiviDeLaDemande)[];
   refus?: Partial<Record<keyof EcrivainDuDepot, EcritureRefusee>>;
+  // Les branches déjà poussées, avec leur demande de fusion ouverte s'il y en a une.
+  branches?: BrancheEnAttente[];
 }
 
 export interface CommitEnMemoire {
@@ -72,6 +75,12 @@ export function ecrivainEnMemoire(
     demanderLaFusionAutomatique: async (demande) => {
       refuser("demanderLaFusionAutomatique");
       fusionAutomatique.push(demande);
+    },
+    brancheEnAttente: async (prefixe) => {
+      refuser("brancheEnAttente");
+      return scenario.branches?.find(({ branche }) =>
+        branche.startsWith(prefixe),
+      );
     },
     etatDeLaDemande: async () => {
       refuser("etatDeLaDemande");

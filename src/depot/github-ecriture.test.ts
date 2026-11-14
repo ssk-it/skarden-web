@@ -438,3 +438,45 @@ describe("l'écriture dans un dépôt GitHub", () => {
     });
   });
 });
+
+describe("brancheEnAttente", () => {
+  const PREFIXE = "phases/2026-11-08-liqueur-hibiscus-maceration-";
+
+  it("ne trouve rien quand aucune branche ne porte le préfixe", async () => {
+    const { ecrivain: e } = ecrivain({
+      [`GET ${API}/git/matching-refs/heads/${PREFIXE}`]: { corps: [] },
+    });
+    expect(await e.brancheEnAttente(PREFIXE)).toBeUndefined();
+  });
+
+  it("rend la branche et sa demande de fusion ouverte", async () => {
+    const branche = `${PREFIXE}20261120-1017`;
+    const { ecrivain: e } = ecrivain({
+      [`GET ${API}/git/matching-refs/heads/${PREFIXE}`]: {
+        corps: [{ ref: `refs/heads/${branche}` }],
+      },
+      [`GET ${API}/pulls?state=open&head=sskorupski%3A${encodeURIComponent(branche)}`]:
+        {
+          corps: [
+            { html_url: "https://github.com/sskorupski/skarden/pull/31" },
+          ],
+        },
+    });
+    expect(await e.brancheEnAttente(PREFIXE)).toEqual({
+      branche,
+      demande: "https://github.com/sskorupski/skarden/pull/31",
+    });
+  });
+
+  it("rend la branche seule quand aucune demande n'est ouverte", async () => {
+    const branche = `${PREFIXE}20261120-1017`;
+    const { ecrivain: e } = ecrivain({
+      [`GET ${API}/git/matching-refs/heads/${PREFIXE}`]: {
+        corps: [{ ref: `refs/heads/${branche}` }],
+      },
+      [`GET ${API}/pulls?state=open&head=sskorupski%3A${encodeURIComponent(branche)}`]:
+        { corps: [] },
+    });
+    expect(await e.brancheEnAttente(PREFIXE)).toEqual({ branche });
+  });
+});

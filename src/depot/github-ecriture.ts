@@ -88,6 +88,23 @@ export function ecrivainGithub(
   };
 
   return {
+    async brancheEnAttente(prefixe) {
+      const refs = await json<{ ref: string }[]>(
+        `${api}/git/matching-refs/heads/${chemin(prefixe)}`,
+      );
+      const [premiere] = refs;
+      if (!premiere) return undefined;
+      const branche = premiere.ref.replace(/^refs\/heads\//, "");
+      const parametres = new URLSearchParams({
+        state: "open",
+        head: `${proprietaire}:${branche}`,
+      });
+      const [demande] = await json<{ html_url: string }[]>(
+        `${api}/pulls?${parametres}`,
+      );
+      return { branche, ...(demande && { demande: demande.html_url }) };
+    },
+
     async lireFicheSurLaBase(c) {
       const branche = await lireBrancheParDefaut();
       const { object } = await json<{ object: { sha: string } }>(

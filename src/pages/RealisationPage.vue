@@ -107,6 +107,7 @@ const libelleDePhase = (phaseId: string) =>
             data-test="phase"
           >
             <PhaseRealisee
+              :realisation="valeur.realisation.id"
               :phase="phase"
               :libelle="libelleDePhase(phase.id)"
               :maintenant="valeur.maintenant"

@@ -169,6 +169,7 @@ function afficher() {
           <span class="visuellement-cache">Réalisée : </span>
           <PhaseRealisee
             v-if="'reelle' in ligne"
+            :realisation="lecture.realisation.id"
             :phase="ligne.reelle"
             :libelle="
               'cible' in ligne ? ligne.cible.libelle : libelle(ligne.id)
