@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
+import FinDePhase from "./FinDePhase.vue";
 import {
   libelleDateOuInstant,
   libelleDuree,
@@ -11,8 +12,9 @@ import {
   type PhaseDeRealisation,
 } from "../fiches/transformations";
 
-// RG-page-d-une-realisation : une phase de la frise, sa durée calculée, son contenant et sa température ; sans fin, elle est « en cours » et sa durée court jusqu'à maintenant.
+// RG-page-d-une-realisation : une phase de la frise, sa durée calculée, son contenant et sa température ; sans fin, elle est « en cours » et sa durée court jusqu'à maintenant, et sa fin se déclare depuis la page (RG-fin-de-phase-declaree-depuis-le-site).
 defineProps<{
+  realisation: string;
   phase: PhaseDeRealisation;
   libelle: string;
   maintenant: number;
@@ -71,5 +73,6 @@ defineProps<{
         <dd>{{ phase.conditions }}</dd>
       </template>
     </dl>
+    <FinDePhase :realisation="realisation" :phase="phase" :libelle="libelle" />
   </div>
 </template>

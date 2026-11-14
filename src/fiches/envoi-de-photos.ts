@@ -1,49 +1,19 @@
-// RG-photo-postee-depuis-le-site, ADR-photos-postees-par-une-branche : le chemin d'un envoi de photos, de la branche à la fusion. Chaque étape se dit ; une étape qui échoue s'arrête là, et la photo n'atteint pas la branche par défaut.
+// RG-photo-postee-depuis-le-site, ADR-photos-postees-par-une-branche : un envoi de photos, de la branche à la fusion, par le chemin commun des écritures du site.
 
+import type { EcrivainDuDepot } from "../depot/ecrivain";
 import {
-  EcritureRefusee,
-  type AvancementDeLAction,
-  type Controles,
-  type EcrivainDuDepot,
-} from "../depot/ecrivain";
-import { FichierIntrouvable } from "../depot/lecteur";
-import {
-  FicheNonModifiable,
-  ajouterAuxPhotos,
-  nommerEnvoi,
-} from "./photos-ajoutees";
+  ecrireParUneDemande,
+  type OptionsDEnvoi,
+  type Suivi,
+} from "./ecriture-par-demande";
+import { ajouterAuxPhotos, nommerEnvoi } from "./photos-ajoutees";
 
-export type Etape = "envoi" | "conversion" | "verification" | "fusion";
-
-export type Echec =
-  | { raison: "jeton-refuse" }
-  | { raison: "reseau" }
-  | { raison: "refusee"; message: string }
-  | { raison: "fiche-absente" }
-  | { raison: "fiche-non-modifiable"; message: string }
-  | { raison: "conversion-absente" }
-  | { raison: "conversion-echouee"; adresse: string }
-  | { raison: "conversion-trop-longue"; adresse?: string }
-  | { raison: "controles-rouges"; adresse: string }
-  | { raison: "fusion-automatique-refusee"; adresse: string }
-  | { raison: "fusion-trop-longue"; adresse: string };
-
-export interface Suivi {
-  faites: Etape[];
-  enCours?: Etape;
-  // La branche par défaut a avancé : la demande attend d'être mise à jour, comme le veut sa règle.
-  aMettreAJour: boolean;
-  demande?: string;
-  echec?: Echec;
-  // L'heure, en millisecondes, où chaque étape a commencé et fini : le site en tire leur durée.
-  debuts: Partial<Record<Etape, number>>;
-  fins: Partial<Record<Etape, number>>;
-  // L'Action qui convertit, dès que GitHub l'a créée, et où elle en est.
-  action?: string;
-  conversion?: AvancementDeLAction;
-  // Les contrôles de la demande de fusion, comptés.
-  controles?: Controles;
-}
+export type {
+  Echec,
+  Etape,
+  OptionsDEnvoi,
+  Suivi,
+} from "./ecriture-par-demande";
 
 export interface Envoi {
   // Le dossier de la collection, que `referentiel.yml` déclare.
@@ -53,188 +23,47 @@ export interface Envoi {
   photos: Blob[];
 }
 
-export interface OptionsDEnvoi {
-  maintenant?: Date;
-  attendre?: (millisecondes: number) => Promise<void>;
-  horloge?: () => number;
-}
-
-// Une conversion prend une à deux minutes ; les contrôles et la fusion, quelques minutes de plus.
-const CONVERSION = { intervalle: 5_000, tours: 72 };
-const DEMANDE = { intervalle: 10_000, tours: 120 };
-
-const attendreVraiment = (millisecondes: number) =>
-  new Promise<void>((resoudre) => setTimeout(resoudre, millisecondes));
-
-export async function posterPhotos(
+export function posterPhotos(
   ecrivain: EcrivainDuDepot,
   { dossier, fichier, photos }: Envoi,
   signaler: (suivi: Suivi) => void,
   {
     maintenant = new Date(),
-    attendre = attendreVraiment,
-    horloge = Date.now,
-  }: OptionsDEnvoi = {},
+    ...options
+  }: OptionsDEnvoi & { maintenant?: Date } = {},
 ): Promise<Suivi> {
-  const suivi: Suivi = {
-    faites: [],
-    aMettreAJour: false,
-    debuts: {},
-    fins: {},
-  };
-  const publier = () => {
-    const copie = {
-      ...suivi,
-      faites: [...suivi.faites],
-      debuts: { ...suivi.debuts },
-      fins: { ...suivi.fins },
-    };
-    signaler(copie);
-    return copie;
-  };
-  const commencer = (etape: Etape) => {
-    suivi.enCours = etape;
-    suivi.debuts[etape] = horloge();
-    publier();
-  };
-  const finir = () => {
-    if (suivi.enCours) {
-      suivi.faites.push(suivi.enCours);
-      suivi.fins[suivi.enCours] = horloge();
-    }
-    suivi.enCours = undefined;
-  };
-  // Ne publie que ce qui change : la zone vivante n'annonce pas deux fois la même chose.
-  const noter = <C extends "action" | "conversion" | "controles">(
-    champ: C,
-    valeur: Suivi[C],
-  ) => {
-    if (JSON.stringify(suivi[champ]) === JSON.stringify(valeur)) return;
-    suivi[champ] = valeur;
-    publier();
-  };
-  const echouer = (echec: Echec) => {
-    suivi.echec = echec;
-    return publier();
-  };
-
   const cheminDeLaFiche = `${dossier}/${fichier}.md`;
-  const titre = `Ajouter ${photos.length} photo${photos.length > 1 ? "s" : ""} à ${cheminDeLaFiche}`;
-  try {
-    commencer("envoi");
-    const { texte, base } = await ecrivain.lireFicheSurLaBase(cheminDeLaFiche);
-    const { branche, chemins } = nommerEnvoi(
-      dossier,
-      fichier,
-      maintenant,
-      photos.length,
-    );
-    const completee = ajouterAuxPhotos(texte, chemins);
-    const commit = await ecrivain.commiterSurUneBranche({
-      branche,
-      base,
-      message: titre,
-      fichiers: [
-        ...photos.map((contenu, i) => ({
-          chemin: chemins[i] as string,
-          contenu,
-        })),
-        { chemin: cheminDeLaFiche, contenu: completee },
-      ],
-    });
-    finir();
-
-    commencer("conversion");
-    let convertie = false;
-    for (let tour = 0; tour < CONVERSION.tours && !convertie; tour++) {
-      const conversion = await ecrivain.conversion(branche, commit);
-      if (conversion.etat === "absente")
-        return echouer({ raison: "conversion-absente" });
-      if (conversion.etat === "echouee")
-        return echouer({
-          raison: "conversion-echouee",
-          adresse: conversion.adresse,
-        });
-      if (conversion.etat === "reussie") convertie = true;
-      else {
-        if (conversion.adresse) noter("action", conversion.adresse);
-        if (conversion.statut)
-          noter("conversion", {
-            statut: conversion.statut,
-            ...(conversion.etape && { etape: conversion.etape }),
-          });
-        await attendre(CONVERSION.intervalle);
-      }
-    }
-    if (!convertie)
-      return echouer({
-        raison: "conversion-trop-longue",
-        adresse: suivi.action,
-      });
-    suivi.conversion = undefined;
-    finir();
-
-    commencer("verification");
-    const demande = await ecrivain.ouvrirDemande({
-      branche,
-      titre,
+  return ecrireParUneDemande(
+    ecrivain,
+    {
+      titre: `Ajouter ${photos.length} photo${photos.length > 1 ? "s" : ""} à ${cheminDeLaFiche}`,
       corps:
         "Photos envoyées depuis skarden-web, converties en pointeurs LFS par photos-en-lfs.yml (ADR-photos-postees-par-une-branche).",
-    });
-    suivi.demande = demande.adresse;
-    publier();
-    try {
-      await ecrivain.demanderLaFusionAutomatique(demande);
-    } catch (erreur) {
-      if (
-        erreur instanceof EcritureRefusee &&
-        erreur.raison === "fusion-automatique-refusee"
-      )
-        return echouer({
-          raison: "fusion-automatique-refusee",
-          adresse: demande.adresse,
-        });
-      throw erreur;
-    }
-    for (let tour = 0; tour < DEMANDE.tours; tour++) {
-      const { etat, controles } = await ecrivain.etatDeLaDemande(demande);
-      if (controles && etat !== "fusionnee") noter("controles", controles);
-      if (etat === "controles-rouges")
-        return echouer({
-          raison: "controles-rouges",
-          adresse: demande.adresse,
-        });
-      if (
-        (etat === "verifiee" || etat === "fusionnee") &&
-        suivi.enCours === "verification"
-      ) {
-        finir();
-        commencer("fusion");
-      }
-      if (etat === "fusionnee") {
-        finir();
-        return publier();
-      }
-      if (suivi.aMettreAJour !== (etat === "a-mettre-a-jour")) {
-        suivi.aMettreAJour = etat === "a-mettre-a-jour";
-        publier();
-      }
-      await attendre(DEMANDE.intervalle);
-    }
-    return echouer({ raison: "fusion-trop-longue", adresse: demande.adresse });
-  } catch (erreur) {
-    if (erreur instanceof FichierIntrouvable)
-      return echouer({ raison: "fiche-absente" });
-    if (erreur instanceof FicheNonModifiable)
-      return echouer({
-        raison: "fiche-non-modifiable",
-        message: erreur.message,
-      });
-    if (erreur instanceof EcritureRefusee) {
-      if (erreur.raison === "jeton-refuse" || erreur.raison === "reseau")
-        return echouer({ raison: erreur.raison });
-      return echouer({ raison: "refusee", message: erreur.message });
-    }
-    throw erreur;
-  }
+      conversion: true,
+      async preparer() {
+        const { texte, base } =
+          await ecrivain.lireFicheSurLaBase(cheminDeLaFiche);
+        const { branche, chemins } = nommerEnvoi(
+          dossier,
+          fichier,
+          maintenant,
+          photos.length,
+        );
+        const completee = ajouterAuxPhotos(texte, chemins);
+        return {
+          branche,
+          base,
+          fichiers: [
+            ...photos.map((contenu, i) => ({
+              chemin: chemins[i] as string,
+              contenu,
+            })),
+            { chemin: cheminDeLaFiche, contenu: completee },
+          ],
+        };
+      },
+    },
+    signaler,
+    options,
+  );
 }
